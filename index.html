@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulado PSPO I</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Simulado <strong>PSPO I</strong></div>
+    <div id="exam-status" class="exam-status hidden">
+      <span id="progress-text"></span>
+      <span id="timer" class="timer">60:00</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Tela inicial -->
+    <section id="screen-home" class="screen">
+      <div class="hero">
+        <h1>Treine para a certificação PSPO I</h1>
+        <p class="muted">Simulado nas mesmas condições da prova oficial.</p>
+        <div class="facts">
+          <div class="fact"><span class="fact-n">80</span><span>questões</span></div>
+          <div class="fact"><span class="fact-n">60</span><span>minutos</span></div>
+          <div class="fact"><span class="fact-n">85%</span><span>para aprovação</span></div>
+          <div class="fact"><span class="fact-n">3</span><span>formatos</span></div>
+        </div>
+        <div class="modes">
+          <button class="mode-card" data-mode="exam">
+            <span class="mode-title">Modo Prova</span>
+            <span class="mode-desc">80 questões, 60 minutos, resultado só no final. Igual à prova real.</span>
+          </button>
+          <button class="mode-card" data-mode="study">
+            <span class="mode-title">Modo Estudo</span>
+            <span class="mode-desc">Sem limite de tempo. Mostra a resposta certa e a explicação após cada questão.</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="history" class="panel">
+        <h2>Histórico de tentativas</h2>
+        <div id="history-body"></div>
+      </div>
+    </section>
+
+    <!-- Tela de questão -->
+    <section id="screen-quiz" class="screen hidden">
+      <div class="quiz-layout">
+        <div class="question-panel panel">
+          <div class="q-meta">
+            <span id="q-number"></span>
+            <span id="q-type" class="tag"></span>
+            <span id="q-topic" class="tag tag-soft"></span>
+          </div>
+          <p id="q-text" class="q-text"></p>
+          <div id="q-hint" class="muted small"></div>
+          <div id="q-options" class="options"></div>
+          <div id="q-feedback" class="feedback hidden"></div>
+          <div class="q-actions">
+            <button id="btn-prev" class="btn">← Anterior</button>
+            <label class="flag"><input type="checkbox" id="chk-flag"> Marcar para revisar</label>
+            <button id="btn-check" class="btn btn-primary hidden">Confirmar</button>
+            <button id="btn-next" class="btn btn-primary">Próxima →</button>
+          </div>
+        </div>
+        <aside class="nav-panel panel">
+          <h3>Questões</h3>
+          <div id="q-grid" class="q-grid"></div>
+          <div class="legend small muted">
+            <span><i class="dot dot-answered"></i>Respondida</span>
+            <span><i class="dot dot-flagged"></i>Marcada</span>
+            <span><i class="dot"></i>Em branco</span>
+          </div>
+          <button id="btn-finish" class="btn btn-danger btn-block">Finalizar simulado</button>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Tela de resultado -->
+    <section id="screen-result" class="screen hidden">
+      <div class="panel result-head">
+        <div id="result-badge" class="badge"></div>
+        <div class="result-score">
+          <span id="result-pct" class="big"></span>
+          <span id="result-detail" class="muted"></span>
+        </div>
+      </div>
+      <div class="stats" id="result-stats"></div>
+      <div class="panel">
+        <h2>Desempenho por tema</h2>
+        <div id="result-topics"></div>
+      </div>
+      <div class="panel">
+        <h2>Tempo por questão</h2>
+        <p class="muted small">Cada barra é uma questão. Verde: acerto, vermelho: erro. A linha tracejada marca o ritmo ideal de 45 s.</p>
+        <div id="result-timeline" class="timeline"></div>
+      </div>
+      <div class="panel">
+        <div class="review-head">
+          <h2>Revisão</h2>
+          <div class="filters">
+            <button class="chip active" data-filter="all">Todas</button>
+            <button class="chip" data-filter="wrong">Erradas</button>
+            <button class="chip" data-filter="flagged">Marcadas</button>
+          </div>
+        </div>
+        <div id="result-review"></div>
+      </div>
+      <div class="center">
+        <button id="btn-home" class="btn btn-primary">Voltar ao início</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="confirm-dialog">
+    <p id="confirm-text"></p>
+    <div class="q-actions">
+      <button id="confirm-no" class="btn">Continuar respondendo</button>
+      <button id="confirm-yes" class="btn btn-danger">Finalizar</button>
+    </div>
+  </dialog>
+
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
