@@ -72,6 +72,13 @@
     return shuffle(picked.slice(0, EXAM.questions));
   }
 
+  // Enunciado + selo indicando quantas respostas escolher nas questões de múltipla resposta.
+  function questionHtml(q) {
+    if (q.type !== "multi") return esc(q.q);
+    const text = q.q.replace(/\s*\(Escolha \d+\)\s*$/, "");
+    return `${esc(text)} <span class="multi-badge">Escolha ${q.answer.length}</span>`;
+  }
+
   // ---------- telas ----------
   function show(screen) {
     for (const s of ["home", "quiz", "result"]) $(`screen-${s}`).classList.toggle("hidden", s !== screen);
@@ -149,8 +156,7 @@
     $("q-number").textContent = `Questão ${i + 1} de ${state.questions.length}`;
     $("q-type").textContent = TYPE_LABEL[q.type];
     $("q-topic").textContent = q.topic;
-    $("q-text").textContent = q.q;
-    $("q-hint").textContent = q.type === "multi" ? `Selecione ${q.answer.length} respostas.` : "";
+    $("q-text").innerHTML = questionHtml(q);
     $("chk-flag").checked = state.flags[i];
 
     const inputType = q.type === "multi" ? "checkbox" : "radio";
@@ -314,7 +320,7 @@
             <span class="tag tag-soft">${esc(r.q.topic)}</span>
             <span class="${r.correct ? "pass-txt" : "fail-txt"}">${r.correct ? "✓ Acertou" : r.selected.length ? "✗ Errou" : "— Em branco"}</span>
             <span class="muted small">${Math.round(r.time)} s</span></div>
-          <p class="q-text">${esc(r.q.q)}</p>
+          <p class="q-text">${questionHtml(r.q)}</p>
           <div class="options">${r.q.options.map((o, idx) => {
             let cls = "option";
             if (r.q.answer.includes(idx)) cls += " correct";
