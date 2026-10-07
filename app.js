@@ -190,14 +190,21 @@
     btn.textContent = t(on ? label : btn.dataset.i18n);
   };
 
+  // Traduz o erro do servidor de login; o detalhe técnico vai junto para facilitar o suporte.
+  function authErrorText(raw, fallbackKey) {
+    if (/too.?many|429/i.test(raw)) return t("errTooMany");
+    if (/network|failed to fetch|load failed/i.test(raw)) return `${t("errNetwork")} (${raw})`;
+    return `${t(fallbackKey)} (${raw})`;
+  }
+
   async function requestCode() {
     const email = $("login-email").value.trim().toLowerCase();
     loginError("");
     if (!window.Auth.isAllowed(email)) { loginError(t("errDomain", window.Auth.domain)); return; }
     busy($("btn-send-code"), true, "sendingCode");
-    const r = await window.Auth.sendCode(email).catch(() => ({ error: "network" }));
+    const r = await window.Auth.sendCode(email).catch((e) => ({ error: `network · ${e?.message || e}` }));
     busy($("btn-send-code"), false);
-    if (r.error) { loginError(/TOO_MANY/i.test(r.error) ? t("errTooMany") : t("errSend")); return; }
+    if (r.error) { loginError(authErrorText(r.error, "errSend")); return; }
     loginEmail = email;
     $("login-code").value = "";
     renderLoginTexts();
@@ -207,9 +214,9 @@
   async function verifyCode() {
     loginError("");
     busy($("btn-verify"), true, "verifying");
-    const r = await window.Auth.verifyCode(loginEmail, $("login-code").value).catch(() => ({ error: "network" }));
+    const r = await window.Auth.verifyCode(loginEmail, $("login-code").value).catch((e) => ({ error: `network · ${e?.message || e}` }));
     busy($("btn-verify"), false);
-    if (r.error || !r.user) { loginError(/TOO_MANY/i.test(r.error || "") ? t("errTooMany") : t("errCode")); return; }
+    if (r.error || !r.user) { loginError(authErrorText(r.error || "no_user", "errCode")); return; }
     if (!window.Auth.isAllowed(r.user.email)) {
       await window.Auth.signOut();
       loginStep("email");
@@ -669,5 +676,11 @@
 
   // ---------- início: exige login ----------
   setLang(store.get(KEY_LANG, lang));
-  window.Auth.init().then((user) => (user ? afterLogin() : showLogin()));
+  if (location.protocol === "file:") {
+    // Aberto com dois cliques: o servidor de login não aceita páginas sem endereço http(s).
+    showLogin(t("errFileProtocol"));
+    $("login-email-form").classList.add("hidden");
+  } else {
+    window.Auth.init().then((user) => (user ? afterLogin() : showLogin()));
+  }
 })();

@@ -11,7 +11,7 @@ Simulado para treinar para a certificação **Professional Scrum Product Owner I
 
 ## Como usar
 
-Abra o `index.html` no navegador. Não precisa instalar nada.
+Abra o simulado pelo endereço do site (GitHub Pages). O login exige um endereço `http(s)`: abrir o `index.html` com dois cliques não funciona. Para testar no computador, rode um servidor local, por exemplo `npx http-server -p 5173`, e acesse http://localhost:5173.
 
 O simulado está disponível em **português e inglês** (seletor PT | EN na tela inicial). A prova oficial é aplicada em inglês.
 

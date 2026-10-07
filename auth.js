@@ -19,7 +19,13 @@
     }
   };
 
-  const errorMessage = (error) => error?.message || error?.code || "unknown_error";
+  // Junta status, código e mensagem do erro para mostrar e registrar no console.
+  const errorMessage = (error) => {
+    const parts = [error?.status, error?.code, error?.message || error?.statusText].filter(Boolean);
+    const msg = parts.length ? parts.join(" · ") : "unknown_error";
+    console.error("[auth]", msg, error);
+    return msg;
+  };
 
   window.Auth = {
     domain,
