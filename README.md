@@ -39,6 +39,32 @@ O banco tem **251 questões**, cada uma em PT e EN. A cada prova, 80 são sortea
 | Release e Entrega de Valor | 10 | 32 |
 | Fundamentos do Scrum | 7 | 23 |
 
+## Nuvem (Neon)
+
+Os resultados do Modo Prova são salvos num banco Postgres no [Neon](https://neon.com), através de uma API no **Neon Functions** (`api/index.ts`). A senha do banco nunca vai para o navegador.
+
+- **Ranking:** melhor nota de cada pessoa, na tela inicial.
+- **Histórico na nuvem:** a pessoa busca pelo nome e vê as próprias provas em qualquer aparelho.
+- **Painel do gestor:** `admin.html`, protegido pela chave de administrador (`ADMIN_KEY`). Mostra todas as tentativas, desempenho por área, questões que mais derrubam e exportação em CSV.
+- **Sem conexão:** o resultado fica guardado no aparelho e é enviado automaticamente depois.
+
+| Rota | Acesso | O que faz |
+| --- | --- | --- |
+| `POST /attempts` | público | Grava uma tentativa (a nota é recalculada no servidor) |
+| `GET /ranking` | público | Top 20, melhor nota por pessoa |
+| `GET /history?name=` | público | Tentativas de um nome |
+| `GET /admin/summary`, `/admin/attempts`, `/admin/questions` | `X-Admin-Key` | Dados do painel do gestor |
+
+### Rodar e publicar a API
+
+```bash
+npm install
+neon dev                          # roda a API localmente
+neon deploy --env .env.local      # publica no Neon
+```
+
+O `.env.local` (fora do Git) precisa ter `ADMIN_KEY` e `ALLOWED_ORIGINS` (sites que podem chamar a API, separados por vírgula), além das variáveis que o `neon env pull` gera. O endereço público da API fica em `config.js`.
+
 ## Adicionando questões
 
 As questões ficam em `questions.js` (PT) e `questions-en.js` (EN). Os dois arquivos precisam ter a **mesma ordem**: o índice é o id da questão no rodízio. Toda questão nova deve ser adicionada no fim dos dois arquivos. Cada item segue este formato:

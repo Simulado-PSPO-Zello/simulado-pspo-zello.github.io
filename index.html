@@ -47,8 +47,21 @@
         </div>
       </div>
 
+      <div class="panel">
+        <h2 data-i18n="rankingTitle">Ranking</h2>
+        <p class="muted small" data-i18n="rankingHint">Melhor nota de cada pessoa no Modo Prova.</p>
+        <div id="ranking-body"></div>
+      </div>
+
       <div id="history" class="panel">
         <h2 data-i18n="historyTitle">Histórico de tentativas</h2>
+        <p class="muted small" data-i18n="historyCloudHint">Digite o nome usado no Modo Prova para ver as tentativas salvas na nuvem, em qualquer aparelho.</p>
+        <form id="history-form" class="search-row">
+          <input id="history-name" class="input" type="text" maxlength="60" autocomplete="name" placeholder="Nome" data-i18n-placeholder="searchName">
+          <button type="submit" class="btn btn-primary" data-i18n="search">Buscar</button>
+        </form>
+        <div id="history-cloud"></div>
+        <h3 class="local-title" data-i18n="localTitle">Neste aparelho</h3>
         <div id="history-body"></div>
       </div>
     </section>
@@ -94,6 +107,7 @@
           <span id="result-detail" class="muted"></span>
         </div>
       </div>
+      <p id="cloud-status" class="cloud-status hidden"></p>
       <div class="stats" id="result-stats"></div>
       <div class="panel">
         <h2 data-i18n="topicsTitle">Desempenho por tema</h2>
@@ -141,6 +155,7 @@
     </div>
   </dialog>
 
+  <script src="config.js"></script>
   <script src="i18n.js"></script>
   <script src="questions.js"></script>
   <script src="questions-en.js"></script>

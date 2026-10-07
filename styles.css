@@ -224,3 +224,13 @@ dialog h2 { margin-bottom: 4px; }
   .candidate { display: none; }
   .topbar { padding: 10px 16px; }
 }
+
+/* Nuvem: ranking, histórico e status de envio */
+.search-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.search-row .input { margin: 0; flex: 1; }
+.local-title { margin-top: 24px; color: var(--muted); font-size: .9rem; }
+.cloud-status { margin: -4px 0 16px; padding: 10px 14px; border-radius: 8px; font-size: .9rem; background: var(--surface-2); color: var(--muted); }
+.cloud-status.ok { background: var(--ok-soft); color: var(--ok); }
+.cloud-status.warn { background: var(--warn-soft); color: var(--warn); }
+.rank-1 td:first-child { color: #fbbf24; font-weight: 700; }
+.table-wrap { overflow-x: auto; }

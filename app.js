@@ -6,6 +6,8 @@
   const KEY_NAME = "pspo-last-name";
   const KEY_LANG = "pspo-lang";
   const KEY_SEEN = "pspo-seen";
+  const KEY_PENDING = "pspo-pending"; // tentativas aguardando envio para a nuvem
+  const API_URL = (window.API_URL || "").replace(/\/$/, "");
   // Quantas questões de cada área entram nas 80. Product Backlog é o "coração da prova".
   const TOPIC_QUOTA = { backlog: 22, po: 15, events: 14, value: 12, release: 10, fundamentals: 7 };
   // Os dois bancos têm a mesma ordem: o índice é o id da questão nos dois idiomas.
@@ -46,6 +48,96 @@
     document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
     document.querySelectorAll("#lang-switch button").forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
     $("lang-switch").setAttribute("aria-label", t("langLabel"));
+  }
+
+  // ---------- nuvem (API no Neon Functions) ----------
+  async function api(path, options = {}) {
+    if (!API_URL) throw new Error("API_URL não configurada");
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 10000);
+    try {
+      const res = await fetch(API_URL + path, {
+        ...options,
+        signal: ctrl.signal,
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      });
+      const data = await res.json().catch(() => null);
+      return { ok: res.ok, status: res.status, data };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Envia uma tentativa. Falha de rede, 5xx ou 429 => guarda na fila para reenviar depois.
+  // 4xx (dado inválido) não adianta reenviar.
+  async function sendAttempt(payload) {
+    try {
+      const r = await api("/attempts", { method: "POST", body: JSON.stringify(payload) });
+      if (r.ok) return "saved";
+      if (r.status === 429 || r.status >= 500) return "retry";
+      return "rejected";
+    } catch {
+      return "retry";
+    }
+  }
+
+  async function flushPending() {
+    const pending = store.get(KEY_PENDING, []);
+    if (!pending.length) return;
+    const still = [];
+    for (const p of pending) {
+      if ((await sendAttempt(p)) === "retry") still.push(p);
+    }
+    store.set(KEY_PENDING, still);
+  }
+
+  async function submitToCloud(payload) {
+    const el = $("cloud-status");
+    el.className = "cloud-status";
+    el.textContent = t("cloudSaving");
+    const result = await sendAttempt(payload);
+    if (result === "saved") {
+      el.className = "cloud-status ok";
+      el.textContent = t("cloudSaved");
+    } else if (result === "retry") {
+      store.set(KEY_PENDING, [...store.get(KEY_PENDING, []), payload].slice(-20));
+      el.className = "cloud-status warn";
+      el.textContent = t("cloudQueued");
+    } else {
+      el.className = "cloud-status warn";
+      el.textContent = t("cloudRejected");
+    }
+  }
+
+  async function renderRanking() {
+    const box = $("ranking-body");
+    box.innerHTML = `<p class="muted small">${t("loading")}</p>`;
+    try {
+      const r = await api("/ranking");
+      if (!r.ok) throw new Error(String(r.status));
+      if (!r.data.length) { box.innerHTML = `<p class="muted">${t("rankingEmpty")}</p>`; return; }
+      box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>${t("thPos")}</th><th>${t("thName")}</th><th>${t("thScore")}</th><th>${t("thTime")}</th><th>${t("thAttempts")}</th><th>${t("thResult")}</th></tr></thead><tbody>
+        ${r.data.map((x, i) => `<tr class="${i === 0 ? "rank-1" : ""}">
+          <td>${i + 1}º</td><td>${esc(x.name)}</td><td>${x.pct}%</td><td>${fmtTime(x.duration)}</td><td>${x.attempts}</td>
+          <td class="${x.pct >= EXAM.passPct ? "pass-txt" : "fail-txt"}">${t(x.pct >= EXAM.passPct ? "pass" : "fail")}</td></tr>`).join("")}
+        </tbody></table></div>`;
+    } catch {
+      box.innerHTML = `<p class="muted small">${t("offline")}</p>`;
+    }
+  }
+
+  async function renderCloudHistory(name) {
+    const box = $("history-cloud");
+    name = (name || "").trim();
+    if (!name) { box.innerHTML = ""; return; }
+    box.innerHTML = `<p class="muted small">${t("loading")}</p>`;
+    try {
+      const r = await api(`/history?name=${encodeURIComponent(name)}`);
+      if (!r.ok) throw new Error(String(r.status));
+      box.innerHTML = r.data.length ? historyTable(r.data) : `<p class="muted">${esc(t("historyNoneForName", name))}</p>`;
+    } catch {
+      box.innerHTML = `<p class="muted small">${t("offline")}</p>`;
+    }
   }
 
   // ---------- utilidades ----------
@@ -288,10 +380,20 @@
     const history = store.get(KEY_HISTORY, []);
     history.unshift(summary);
     store.set(KEY_HISTORY, history.slice(0, 50));
+    const payload = state.mode === "exam" && summary.name ? {
+      name: summary.name, mode: summary.mode, lang: summary.lang,
+      duration: Math.round(summary.duration), timeUp,
+      answers: results
+        .filter((r) => Number.isInteger(r.q.id))
+        .map((r) => ({ id: r.q.id, topic: r.q.topic, answered: r.selected.length > 0, correct: r.correct, time: Math.round(r.time) })),
+    } : null;
     store.remove(KEY_STATE);
     state = null;
 
     renderResult(summary, results);
+    // Só o Modo Prova (que tem nome) vai para a nuvem.
+    $("cloud-status").classList.toggle("hidden", !payload);
+    if (payload) submitToCloud(payload);
   }
 
   // ---------- resultado ----------
@@ -364,18 +466,14 @@
   }
 
   // ---------- histórico ----------
-  function renderHistory() {
-    const h = store.get(KEY_HISTORY, []);
-    if (!h.length) {
-      $("history-body").innerHTML = `<p class="muted">${t("historyEmpty")}</p>`;
-      return;
-    }
+  // Tabela usada tanto para o histórico local quanto para o da nuvem.
+  function historyTable(h) {
     const exams = h.filter((x) => x.mode === "exam");
     const best = exams.length ? Math.max(...exams.map((x) => x.pct)) : "-";
     const avg = exams.length ? (exams.reduce((sum, x) => sum + x.pct, 0) / exams.length).toFixed(1) : "-";
-    $("history-body").innerHTML = `
+    return `
       <p class="muted small">${t("historySummary", exams.length, best, avg, exams.filter((x) => x.pass).length)}</p>
-      <table><thead><tr><th>${t("thDate")}</th><th>${t("thName")}</th><th>${t("thMode")}</th><th>${t("thScore")}</th><th>${t("thCorrect")}</th><th>${t("thTime")}</th><th>${t("thResult")}</th></tr></thead><tbody>
+      <div class="table-wrap"><table><thead><tr><th>${t("thDate")}</th><th>${t("thName")}</th><th>${t("thMode")}</th><th>${t("thScore")}</th><th>${t("thCorrect")}</th><th>${t("thTime")}</th><th>${t("thResult")}</th></tr></thead><tbody>
       ${h.map((x) => `<tr>
         <td>${new Date(x.date).toLocaleString(t("locale"), { dateStyle: "short", timeStyle: "short" })}</td>
         <td>${esc(x.name || "-")}</td>
@@ -384,8 +482,17 @@
         <td>${x.correct}/${x.total}</td>
         <td>${fmtTime(x.duration)}</td>
         <td class="${x.pass ? "pass-txt" : "fail-txt"}">${t(x.pass ? "pass" : "fail")}</td></tr>`).join("")}
-      </tbody></table>
-      <div class="center"><button id="btn-clear" class="btn">${t("clearHistory")}</button></div>`;
+      </tbody></table></div>`;
+  }
+
+  function renderHistory() {
+    const h = store.get(KEY_HISTORY, []);
+    if (!h.length) {
+      $("history-body").innerHTML = `<p class="muted">${t("historyEmpty")}</p>`;
+      return;
+    }
+    $("history-body").innerHTML = historyTable(h) +
+      `<div class="center"><button id="btn-clear" class="btn">${t("clearHistory")}</button></div>`;
     $("btn-clear").onclick = () => {
       if (confirm(t("clearConfirm"))) { store.remove(KEY_HISTORY); renderHistory(); }
     };
@@ -395,6 +502,13 @@
     setLang(store.get(KEY_LANG, lang));
     renderHistory();
     show("home");
+    const lastName = store.get(KEY_NAME, "");
+    $("history-name").value = lastName;
+    // Envia pendências primeiro, para o ranking e o histórico já virem atualizados.
+    flushPending().finally(() => {
+      renderRanking();
+      renderCloudHistory(lastName);
+    });
   }
 
   // ---------- eventos ----------
@@ -402,7 +516,13 @@
     store.set(KEY_LANG, b.dataset.lang);
     setLang(b.dataset.lang);
     renderHistory();
+    renderRanking();
+    renderCloudHistory($("history-name").value);
   }));
+  $("history-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    renderCloudHistory($("history-name").value);
+  });
   document.querySelectorAll(".mode-card").forEach((b) => b.addEventListener("click", () => {
     if (b.dataset.mode !== "exam") { start(b.dataset.mode); return; }
     $("name-input").value = store.get(KEY_NAME, "");

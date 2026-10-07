@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Painel do Gestor · Simulado PSPO I</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Painel do Gestor <strong>PSPO I</strong></div>
+    <div class="exam-status">
+      <a class="btn" href="index.html">Ir para o simulado</a>
+      <button id="btn-logout" class="btn hidden">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Acesso -->
+    <section id="login" class="panel login-panel">
+      <h2>Acesso do gestor</h2>
+      <p class="muted small">Informe a chave de administrador. Ela fica guardada só nesta aba e some ao fechar o navegador.</p>
+      <form id="login-form" class="search-row">
+        <input id="admin-key" class="input" type="password" autocomplete="current-password" placeholder="Chave de administrador" required>
+        <button type="submit" class="btn btn-primary">Entrar</button>
+      </form>
+      <p id="login-error" class="fail-txt small hidden"></p>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="stats" id="summary"></div>
+
+      <div class="panel">
+        <h2>Desempenho por área (Modo Prova)</h2>
+        <div id="topics"></div>
+      </div>
+
+      <div class="panel">
+        <div class="review-head">
+          <h2>Tentativas</h2>
+          <div class="filters">
+            <button class="chip active" data-mode="all">Todas</button>
+            <button class="chip" data-mode="exam">Prova</button>
+            <button class="chip" data-mode="passed">Aprovadas</button>
+            <button id="btn-csv" class="chip">Exportar CSV</button>
+          </div>
+        </div>
+        <input id="filter-name" class="input" type="search" placeholder="Filtrar por nome">
+        <div id="attempts"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Questões que mais derrubam</h2>
+        <p class="muted small">Questões com pelo menos 3 aparições, ordenadas pela taxa de erro.</p>
+        <div id="questions"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script src="questions.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
