@@ -51,6 +51,14 @@ h3 { font-size: 1rem; margin: 0 0 10px; }
   border-bottom: 1px solid var(--border);
 }
 .brand { font-size: 1.05rem; white-space: nowrap; }
+.lang-switch { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.lang-switch button {
+  font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer;
+  padding: 5px 12px; border: 0; background: var(--surface-2); color: var(--muted);
+}
+.lang-switch button + button { border-left: 1px solid var(--border); }
+.lang-switch button:hover { color: var(--text); }
+.lang-switch button.active { background: var(--primary); color: #fff; }
 .exam-status { display: flex; gap: 16px; align-items: center; white-space: nowrap; }
 .brand strong { color: var(--primary); }
 .timer {

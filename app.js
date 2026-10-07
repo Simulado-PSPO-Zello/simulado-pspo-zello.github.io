@@ -4,20 +4,18 @@
   const KEY_STATE = "pspo-state";
   const KEY_HISTORY = "pspo-history";
   const KEY_NAME = "pspo-last-name";
+  const KEY_LANG = "pspo-lang";
+  const KEY_SEEN = "pspo-seen";
   // Quantas questões de cada área entram nas 80. Product Backlog é o "coração da prova".
-  const TOPIC_QUOTA = {
-    "Gestão do Product Backlog": 22,
-    "Papel do Product Owner": 15,
-    "PO nos Eventos Scrum": 14,
-    "Produto, Visão e Valor": 12,
-    "Release e Entrega de Valor": 10,
-    "Fundamentos do Scrum": 7,
-  };
-  const TYPE_LABEL ={ single: "Múltipla escolha", multi: "Múltipla resposta", tf: "Verdadeiro/Falso" };
+  const TOPIC_QUOTA = { backlog: 22, po: 15, events: 14, value: 12, release: 10, fundamentals: 7 };
+  // Os dois bancos têm a mesma ordem: o índice é o id da questão nos dois idiomas.
+  const BANKS = { pt: window.QUESTIONS, en: window.QUESTIONS_EN };
+  for (const bank of Object.values(BANKS)) bank.forEach((q, i) => { q.id = i; });
 
   const $ = (id) => document.getElementById(id);
   let state = null;
   let tickHandle = null;
+  let lang = "pt";
 
   // ---------- armazenamento ----------
   const store = {
@@ -32,6 +30,23 @@
     },
   };
   const save = () => state && store.set(KEY_STATE, state);
+
+  // ---------- idioma ----------
+  const t = (key, ...args) => {
+    const v = window.I18N[lang][key];
+    return typeof v === "function" ? v(...args) : v;
+  };
+  const topicLabel = (id) => window.I18N[lang].topics[id] ?? id;
+
+  function setLang(next) {
+    lang = window.I18N[next] ? next : "pt";
+    document.documentElement.lang = t("htmlLang");
+    document.title = t("title");
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+    document.querySelectorAll("#lang-switch button").forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
+    $("lang-switch").setAttribute("aria-label", t("langLabel"));
+  }
 
   // ---------- utilidades ----------
   const shuffle = (arr) => {
@@ -60,29 +75,36 @@
     };
   }
 
-  // Sorteia respeitando a cota de cada área; completa com o restante se faltar.
+  // Sorteia respeitando a cota de cada área, priorizando as questões que menos caíram
+  // nas provas anteriores (rodízio). Completa com o restante se faltar.
   function pickQuestions() {
-    const pool = shuffle(window.QUESTIONS);
+    const seen = store.get(KEY_SEEN, {});
+    const pool = shuffle(BANKS[lang]).sort((a, b) => (seen[a.id] || 0) - (seen[b.id] || 0));
     const picked = [];
     for (const [topic, n] of Object.entries(TOPIC_QUOTA)) {
       picked.push(...pool.filter((q) => q.topic === topic).slice(0, n));
     }
     const rest = pool.filter((q) => !picked.includes(q));
     picked.push(...rest.slice(0, Math.max(0, EXAM.questions - picked.length)));
-    return shuffle(picked.slice(0, EXAM.questions));
+    const chosen = shuffle(picked.slice(0, EXAM.questions));
+    for (const q of chosen) seen[q.id] = (seen[q.id] || 0) + 1;
+    store.set(KEY_SEEN, seen);
+    return chosen;
   }
 
   // Enunciado + selo indicando quantas respostas escolher nas questões de múltipla resposta.
   function questionHtml(q) {
     if (q.type !== "multi") return esc(q.q);
-    const text = q.q.replace(/\s*\(Escolha \d+\)\s*$/, "");
-    return `${esc(text)} <span class="multi-badge">Escolha ${q.answer.length}</span>`;
+    const text = q.q.replace(/\s*\((Escolha|Choose) \d+\)\s*$/, "");
+    return `${esc(text)} <span class="multi-badge">${t("choose", q.answer.length)}</span>`;
   }
 
   // ---------- telas ----------
   function show(screen) {
     for (const s of ["home", "quiz", "result"]) $(`screen-${s}`).classList.toggle("hidden", s !== screen);
     $("exam-status").classList.toggle("hidden", screen !== "quiz");
+    // O idioma só pode ser trocado na tela inicial; a prova segue no idioma em que começou.
+    $("lang-switch").classList.toggle("hidden", screen !== "home");
     window.scrollTo(0, 0);
   }
 
@@ -93,6 +115,7 @@
     state = {
       mode,
       name,
+      lang,
       questions: qs,
       answers: qs.map(() => []),
       checked: qs.map(() => false),
@@ -108,6 +131,7 @@
   }
 
   function enterQuiz() {
+    setLang(state.lang || "pt");
     show("quiz");
     $("timer").classList.toggle("hidden", state.mode !== "exam");
     $("candidate").textContent = state.name || "";
@@ -121,10 +145,10 @@
     if (!state) return;
     if (state.mode === "exam") {
       const left = (state.deadline - Date.now()) / 1000;
-      const t = $("timer");
-      t.textContent = fmtTime(left);
-      t.classList.toggle("warn", left <= 600 && left > 120);
-      t.classList.toggle("danger", left <= 120);
+      const el = $("timer");
+      el.textContent = fmtTime(left);
+      el.classList.toggle("warn", left <= 600 && left > 120);
+      el.classList.toggle("danger", left <= 120);
       if (left <= 0) { finish(true); return; }
     }
     // Salva periodicamente o tempo gasto para sobreviver a um refresh.
@@ -153,9 +177,9 @@
     const selected = state.answers[i];
     const locked = state.mode === "study" && state.checked[i];
 
-    $("q-number").textContent = `Questão ${i + 1} de ${state.questions.length}`;
-    $("q-type").textContent = TYPE_LABEL[q.type];
-    $("q-topic").textContent = q.topic;
+    $("q-number").textContent = t("questionOf", i + 1, state.questions.length);
+    $("q-type").textContent = t("types")[q.type];
+    $("q-topic").textContent = topicLabel(q.topic);
     $("q-text").innerHTML = questionHtml(q);
     $("chk-flag").checked = state.flags[i];
 
@@ -177,7 +201,7 @@
     if (locked) {
       const ok = sameSet(selected, q.answer);
       fb.className = `feedback ${ok ? "ok" : "bad"}`;
-      fb.innerHTML = `<strong>${ok ? "Correto!" : "Incorreto."}</strong> ${esc(q.exp)}`;
+      fb.innerHTML = `<strong>${t(ok ? "correct" : "incorrect")}</strong> ${esc(q.exp)}`;
     } else {
       fb.className = "feedback hidden";
     }
@@ -186,8 +210,8 @@
     const last = i === state.questions.length - 1;
     $("btn-check").classList.toggle("hidden", state.mode !== "study" || locked);
     $("btn-check").disabled = selected.length === 0;
-    $("btn-next").textContent = last ? "Revisar e finalizar" : "Próxima →";
-    $("progress-text").textContent = `${answeredCount()}/${state.questions.length} respondidas`;
+    $("btn-next").textContent = t(last ? "reviewFinish" : "next");
+    $("progress-text").textContent = t("answeredOf", answeredCount(), state.questions.length);
     renderGrid();
   }
 
@@ -225,11 +249,9 @@
     const blank = state.questions.length - answeredCount();
     const flagged = state.flags.filter(Boolean).length;
     const parts = [];
-    if (blank) parts.push(`${blank} questão(ões) em branco`);
-    if (flagged) parts.push(`${flagged} marcada(s) para revisar`);
-    $("confirm-text").textContent = parts.length
-      ? `Você ainda tem ${parts.join(" e ")}. Deseja finalizar mesmo assim?`
-      : "Deseja finalizar o simulado e ver o resultado?";
+    if (blank) parts.push(t("blankCount", blank));
+    if (flagged) parts.push(t("flaggedCount", flagged));
+    $("confirm-text").textContent = parts.length ? t("confirmPending", parts.join(t("and"))) : t("confirmDone");
     $("confirm-dialog").showModal();
   }
 
@@ -256,6 +278,7 @@
       date: finishedAt,
       mode: state.mode,
       name: state.name || "",
+      lang: state.lang || "pt",
       correct, total, pct,
       pass: pct >= EXAM.passPct,
       duration: (finishedAt - state.startedAt) / 1000,
@@ -275,32 +298,32 @@
   function renderResult(s, results) {
     show("result");
     const badge = $("result-badge");
-    badge.textContent = s.pass ? "APROVADO" : "REPROVADO";
+    badge.textContent = t(s.pass ? "passed" : "failed");
     badge.className = `badge ${s.pass ? "pass" : "fail"}`;
     $("result-pct").textContent = `${s.pct}%`;
     $("result-detail").textContent =
       (s.name ? `${s.name} · ` : "") +
-      `${s.correct} de ${s.total} corretas · mínimo ${EXAM.passPct}% (${Math.ceil(s.total * EXAM.passPct / 100)} acertos)` +
-      (s.timeUp ? " · tempo esgotado" : "") + (s.mode === "study" ? " · modo estudo" : "");
+      t("resultDetail", s.correct, s.total, EXAM.passPct, Math.ceil(s.total * EXAM.passPct / 100)) +
+      (s.timeUp ? t("timeUp") : "") + (s.mode === "study" ? t("studyMode") : "");
 
     const answered = results.filter((r) => r.selected.length).length;
-    const avg = answered ? results.reduce((t, r) => t + r.time, 0) / s.total : 0;
+    const avg = answered ? results.reduce((sum, r) => sum + r.time, 0) / s.total : 0;
     const slowest = results.slice().sort((a, b) => b.time - a.time)[0];
     $("result-stats").innerHTML = [
-      ["Tempo total", fmtTime(s.duration)],
-      ["Média por questão", `${Math.round(avg)} s`],
-      ["Em branco", s.total - answered],
-      ["Mais demorada", slowest ? `${Math.round(slowest.time)} s` : "-"],
+      [t("statTotal"), fmtTime(s.duration)],
+      [t("statAvg"), `${Math.round(avg)} s`],
+      [t("statBlank"), s.total - answered],
+      [t("statSlowest"), slowest ? `${Math.round(slowest.time)} s` : "-"],
     ].map(([l, v]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join("");
 
     $("result-topics").innerHTML = Object.entries(s.topics)
       .sort((a, b) => a[1].correct / a[1].total - b[1].correct / b[1].total)
-      .map(([name, t]) => {
-        const p = Math.round((t.correct / t.total) * 100);
+      .map(([id, tp]) => {
+        const p = Math.round((tp.correct / tp.total) * 100);
         const color = p >= EXAM.passPct ? "var(--ok)" : p >= 70 ? "var(--warn)" : "var(--bad)";
-        return `<div class="topic-row"><span>${esc(name)}</span>
+        return `<div class="topic-row"><span>${esc(topicLabel(id))}</span>
           <div class="bar"><div class="bar-fill" style="width:${p}%;background:${color}"></div><div class="bar-mark"></div></div>
-          <span class="topic-pct">${t.correct}/${t.total} · ${p}%</span></div>`;
+          <span class="topic-pct">${tp.correct}/${tp.total} · ${p}%</span></div>`;
       }).join("");
 
     const maxT = Math.max(IDEAL_SEC * 2, ...results.map((r) => r.time));
@@ -308,17 +331,17 @@
       results.map((r, i) => {
         const h = Math.max(2, (r.time / maxT) * 100);
         const color = r.correct ? "var(--ok)" : "var(--bad)";
-        return `<div class="tl-bar" style="height:${h}%;background:${color}" title="Q${i + 1}: ${Math.round(r.time)} s · ${r.correct ? "acerto" : "erro"}"></div>`;
+        return `<div class="tl-bar" style="height:${h}%;background:${color}" title="Q${i + 1}: ${Math.round(r.time)} s · ${t(r.correct ? "hit" : "miss")}"></div>`;
       }).join("") + `<div class="tl-ideal" style="bottom:${(IDEAL_SEC / maxT) * 100}%"></div>`;
 
     const renderReview = (filter) => {
       $("result-review").innerHTML = results.map((r, i) => ({ r, i }))
         .filter(({ r }) => filter === "all" || (filter === "wrong" && !r.correct) || (filter === "flagged" && r.flagged))
         .map(({ r, i }) => `<div class="review-item">
-          <div class="q-meta"><span>Questão ${i + 1}</span>
-            <span class="tag">${TYPE_LABEL[r.q.type]}</span>
-            <span class="tag tag-soft">${esc(r.q.topic)}</span>
-            <span class="${r.correct ? "pass-txt" : "fail-txt"}">${r.correct ? "✓ Acertou" : r.selected.length ? "✗ Errou" : "— Em branco"}</span>
+          <div class="q-meta"><span>${t("question", i + 1)}</span>
+            <span class="tag">${t("types")[r.q.type]}</span>
+            <span class="tag tag-soft">${esc(topicLabel(r.q.topic))}</span>
+            <span class="${r.correct ? "pass-txt" : "fail-txt"}">${t(r.correct ? "reviewHit" : r.selected.length ? "reviewMiss" : "reviewBlank")}</span>
             <span class="muted small">${Math.round(r.time)} s</span></div>
           <p class="q-text">${questionHtml(r.q)}</p>
           <div class="options">${r.q.options.map((o, idx) => {
@@ -328,7 +351,7 @@
             const mark = r.selected.includes(idx) ? "●" : "○";
             return `<div class="${cls}"><span>${mark}</span><span>${esc(o)}</span></div>`;
           }).join("")}</div>
-          <div class="exp">${esc(r.q.exp)}</div></div>`).join("") || `<p class="muted">Nenhuma questão neste filtro.</p>`;
+          <div class="exp">${esc(r.q.exp)}</div></div>`).join("") || `<p class="muted">${t("noneInFilter")}</p>`;
     };
     document.querySelectorAll(".chip").forEach((c) => {
       c.classList.toggle("active", c.dataset.filter === "all");
@@ -344,36 +367,42 @@
   function renderHistory() {
     const h = store.get(KEY_HISTORY, []);
     if (!h.length) {
-      $("history-body").innerHTML = `<p class="muted">Nenhuma tentativa ainda. Seus resultados aparecerão aqui.</p>`;
+      $("history-body").innerHTML = `<p class="muted">${t("historyEmpty")}</p>`;
       return;
     }
     const exams = h.filter((x) => x.mode === "exam");
-    const best = exams.length ? Math.max(...exams.map((x) => x.pct)) : null;
-    const avg = exams.length ? exams.reduce((t, x) => t + x.pct, 0) / exams.length : null;
+    const best = exams.length ? Math.max(...exams.map((x) => x.pct)) : "-";
+    const avg = exams.length ? (exams.reduce((sum, x) => sum + x.pct, 0) / exams.length).toFixed(1) : "-";
     $("history-body").innerHTML = `
-      <p class="muted small">${exams.length} prova(s) · melhor nota ${best ?? "-"}% · média ${avg != null ? avg.toFixed(1) : "-"}% · aprovações ${exams.filter((x) => x.pass).length}</p>
-      <table><thead><tr><th>Data</th><th>Nome</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th></tr></thead><tbody>
+      <p class="muted small">${t("historySummary", exams.length, best, avg, exams.filter((x) => x.pass).length)}</p>
+      <table><thead><tr><th>${t("thDate")}</th><th>${t("thName")}</th><th>${t("thMode")}</th><th>${t("thScore")}</th><th>${t("thCorrect")}</th><th>${t("thTime")}</th><th>${t("thResult")}</th></tr></thead><tbody>
       ${h.map((x) => `<tr>
-        <td>${new Date(x.date).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td>
+        <td>${new Date(x.date).toLocaleString(t("locale"), { dateStyle: "short", timeStyle: "short" })}</td>
         <td>${esc(x.name || "-")}</td>
-        <td>${x.mode === "exam" ? "Prova" : "Estudo"}</td>
+        <td>${t(x.mode === "exam" ? "modeExam" : "modeStudy")} · ${(x.lang || "pt").toUpperCase()}</td>
         <td>${x.pct}%</td>
         <td>${x.correct}/${x.total}</td>
         <td>${fmtTime(x.duration)}</td>
-        <td class="${x.pass ? "pass-txt" : "fail-txt"}">${x.pass ? "Aprovado" : "Reprovado"}</td></tr>`).join("")}
+        <td class="${x.pass ? "pass-txt" : "fail-txt"}">${t(x.pass ? "pass" : "fail")}</td></tr>`).join("")}
       </tbody></table>
-      <div class="center"><button id="btn-clear" class="btn">Limpar histórico</button></div>`;
+      <div class="center"><button id="btn-clear" class="btn">${t("clearHistory")}</button></div>`;
     $("btn-clear").onclick = () => {
-      if (confirm("Apagar todo o histórico de tentativas?")) { store.remove(KEY_HISTORY); renderHistory(); }
+      if (confirm(t("clearConfirm"))) { store.remove(KEY_HISTORY); renderHistory(); }
     };
   }
 
   function goHome() {
+    setLang(store.get(KEY_LANG, lang));
     renderHistory();
     show("home");
   }
 
   // ---------- eventos ----------
+  document.querySelectorAll("#lang-switch button").forEach((b) => b.addEventListener("click", () => {
+    store.set(KEY_LANG, b.dataset.lang);
+    setLang(b.dataset.lang);
+    renderHistory();
+  }));
   document.querySelectorAll(".mode-card").forEach((b) => b.addEventListener("click", () => {
     if (b.dataset.mode !== "exam") { start(b.dataset.mode); return; }
     $("name-input").value = store.get(KEY_NAME, "");
@@ -417,6 +446,7 @@
   if (saved && saved.questions) {
     state = saved;
     state.lastSwitch = Date.now(); // tempo com a página fechada não conta para a questão
+    setLang(state.lang || "pt");
     if (state.mode === "exam" && Date.now() >= state.deadline) finish(true);
     else enterQuiz();
   } else {

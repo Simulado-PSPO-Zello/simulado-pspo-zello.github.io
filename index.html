@@ -11,7 +11,11 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">Simulado <strong>PSPO I</strong></div>
+    <div class="brand"><span data-i18n="brand">Simulado</span> <strong>PSPO I</strong></div>
+    <div id="lang-switch" class="lang-switch" role="group" aria-label="Idioma">
+      <button type="button" data-lang="pt">PT</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
     <div id="exam-status" class="exam-status hidden">
       <span id="candidate" class="candidate"></span>
       <span id="progress-text"></span>
@@ -23,28 +27,28 @@
     <!-- Tela inicial -->
     <section id="screen-home" class="screen">
       <div class="hero">
-        <h1>Treine para a certificação PSPO I</h1>
-        <p class="muted">Simulado nas mesmas condições da prova oficial.</p>
+        <h1 data-i18n="heroTitle">Treine para a certificação PSPO I</h1>
+        <p class="muted" data-i18n="heroSub">Simulado nas mesmas condições da prova oficial.</p>
         <div class="facts">
-          <div class="fact"><span class="fact-n">80</span><span>questões</span></div>
-          <div class="fact"><span class="fact-n">60</span><span>minutos</span></div>
-          <div class="fact"><span class="fact-n">85%</span><span>para aprovação</span></div>
-          <div class="fact"><span class="fact-n">3</span><span>formatos</span></div>
+          <div class="fact"><span class="fact-n">80</span><span data-i18n="factQuestions">questões</span></div>
+          <div class="fact"><span class="fact-n">60</span><span data-i18n="factMinutes">minutos</span></div>
+          <div class="fact"><span class="fact-n">85%</span><span data-i18n="factPass">para aprovação</span></div>
+          <div class="fact"><span class="fact-n">3</span><span data-i18n="factFormats">formatos</span></div>
         </div>
         <div class="modes">
           <button class="mode-card" data-mode="exam">
-            <span class="mode-title">Modo Prova</span>
-            <span class="mode-desc">80 questões, 60 minutos, resultado só no final. Igual à prova real.</span>
+            <span class="mode-title" data-i18n="examTitle">Modo Prova</span>
+            <span class="mode-desc" data-i18n="examDesc">80 questões, 60 minutos, resultado só no final. Igual à prova real.</span>
           </button>
           <button class="mode-card" data-mode="study">
-            <span class="mode-title">Modo Estudo</span>
-            <span class="mode-desc">Sem limite de tempo. Mostra a resposta certa e a explicação após cada questão.</span>
+            <span class="mode-title" data-i18n="studyTitle">Modo Estudo</span>
+            <span class="mode-desc" data-i18n="studyDesc">Sem limite de tempo. Mostra a resposta certa e a explicação após cada questão.</span>
           </button>
         </div>
       </div>
 
       <div id="history" class="panel">
-        <h2>Histórico de tentativas</h2>
+        <h2 data-i18n="historyTitle">Histórico de tentativas</h2>
         <div id="history-body"></div>
       </div>
     </section>
@@ -62,21 +66,21 @@
           <div id="q-options" class="options"></div>
           <div id="q-feedback" class="feedback hidden"></div>
           <div class="q-actions">
-            <button id="btn-prev" class="btn">← Anterior</button>
-            <label class="flag"><input type="checkbox" id="chk-flag"> Marcar para revisar</label>
-            <button id="btn-check" class="btn btn-primary hidden">Confirmar</button>
+            <button id="btn-prev" class="btn" data-i18n="prev">← Anterior</button>
+            <label class="flag"><input type="checkbox" id="chk-flag"> <span data-i18n="flag">Marcar para revisar</span></label>
+            <button id="btn-check" class="btn btn-primary hidden" data-i18n="check">Confirmar</button>
             <button id="btn-next" class="btn btn-primary">Próxima →</button>
           </div>
         </div>
         <aside class="nav-panel panel">
-          <h3>Questões</h3>
+          <h3 data-i18n="questionsNav">Questões</h3>
           <div id="q-grid" class="q-grid"></div>
           <div class="legend small muted">
-            <span><i class="dot dot-answered"></i>Respondida</span>
-            <span><i class="dot dot-flagged"></i>Marcada</span>
-            <span><i class="dot"></i>Em branco</span>
+            <span><i class="dot dot-answered"></i><span data-i18n="legendAnswered">Respondida</span></span>
+            <span><i class="dot dot-flagged"></i><span data-i18n="legendFlagged">Marcada</span></span>
+            <span><i class="dot"></i><span data-i18n="legendBlank">Em branco</span></span>
           </div>
-          <button id="btn-finish" class="btn btn-danger btn-block">Finalizar simulado</button>
+          <button id="btn-finish" class="btn btn-danger btn-block" data-i18n="finishBtn">Finalizar simulado</button>
         </aside>
       </div>
     </section>
@@ -92,39 +96,39 @@
       </div>
       <div class="stats" id="result-stats"></div>
       <div class="panel">
-        <h2>Desempenho por tema</h2>
+        <h2 data-i18n="topicsTitle">Desempenho por tema</h2>
         <div id="result-topics"></div>
       </div>
       <div class="panel">
-        <h2>Tempo por questão</h2>
-        <p class="muted small">Cada barra é uma questão. Verde: acerto, vermelho: erro. A linha tracejada marca o ritmo ideal de 45 s.</p>
+        <h2 data-i18n="timeTitle">Tempo por questão</h2>
+        <p class="muted small" data-i18n="timeHint">Cada barra é uma questão. Verde: acerto, vermelho: erro. A linha tracejada marca o ritmo ideal de 45 s.</p>
         <div id="result-timeline" class="timeline"></div>
       </div>
       <div class="panel">
         <div class="review-head">
-          <h2>Revisão</h2>
+          <h2 data-i18n="reviewTitle">Revisão</h2>
           <div class="filters">
-            <button class="chip active" data-filter="all">Todas</button>
-            <button class="chip" data-filter="wrong">Erradas</button>
-            <button class="chip" data-filter="flagged">Marcadas</button>
+            <button class="chip active" data-filter="all" data-i18n="filterAll">Todas</button>
+            <button class="chip" data-filter="wrong" data-i18n="filterWrong">Erradas</button>
+            <button class="chip" data-filter="flagged" data-i18n="filterFlagged">Marcadas</button>
           </div>
         </div>
         <div id="result-review"></div>
       </div>
       <div class="center">
-        <button id="btn-home" class="btn btn-primary">Voltar ao início</button>
+        <button id="btn-home" class="btn btn-primary" data-i18n="backHome">Voltar ao início</button>
       </div>
     </section>
   </main>
 
   <dialog id="name-dialog">
     <form id="name-form" method="dialog">
-      <h2>Quem vai fazer a prova?</h2>
-      <p class="muted small">O nome fica salvo no resultado e no histórico de tentativas.</p>
-      <input id="name-input" class="input" type="text" placeholder="Seu nome" maxlength="60" autocomplete="name" required>
+      <h2 data-i18n="nameTitle">Quem vai fazer a prova?</h2>
+      <p class="muted small" data-i18n="nameHint">O nome fica salvo no resultado e no histórico de tentativas.</p>
+      <input id="name-input" class="input" type="text" placeholder="Seu nome" data-i18n-placeholder="namePlaceholder" maxlength="60" autocomplete="name" required>
       <div class="q-actions">
-        <button type="button" id="name-cancel" class="btn">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Iniciar prova</button>
+        <button type="button" id="name-cancel" class="btn" data-i18n="cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" data-i18n="startExam">Iniciar prova</button>
       </div>
     </form>
   </dialog>
@@ -132,12 +136,14 @@
   <dialog id="confirm-dialog">
     <p id="confirm-text"></p>
     <div class="q-actions">
-      <button id="confirm-no" class="btn">Continuar respondendo</button>
-      <button id="confirm-yes" class="btn btn-danger">Finalizar</button>
+      <button id="confirm-no" class="btn" data-i18n="keepAnswering">Continuar respondendo</button>
+      <button id="confirm-yes" class="btn btn-danger" data-i18n="finish">Finalizar</button>
     </div>
   </dialog>
 
+  <script src="i18n.js"></script>
   <script src="questions.js"></script>
+  <script src="questions-en.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
