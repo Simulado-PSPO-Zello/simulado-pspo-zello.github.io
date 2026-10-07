@@ -592,9 +592,8 @@
     }
     $("history-body").innerHTML = historyTable(h) +
       `<div class="center"><button id="btn-clear" class="btn">${t("clearHistory")}</button></div>`;
-    $("btn-clear").onclick = () => {
-      if (confirm(t("clearConfirm"))) { store.remove(KEY_HISTORY); renderHistory(); }
-    };
+    // Janela própria em vez de confirm(): alguns navegadores embutidos bloqueiam o confirm().
+    $("btn-clear").onclick = () => $("clear-dialog").showModal();
   }
 
   function goHome() {
@@ -673,6 +672,12 @@
   $("confirm-no").addEventListener("click", () => $("confirm-dialog").close());
   $("confirm-yes").addEventListener("click", () => { $("confirm-dialog").close(); finish(false); });
   $("btn-home").addEventListener("click", goHome);
+  $("clear-no").addEventListener("click", () => $("clear-dialog").close());
+  $("clear-yes").addEventListener("click", () => {
+    store.remove(KEY_HISTORY);
+    $("clear-dialog").close();
+    renderHistory();
+  });
 
   // ---------- início: exige login ----------
   setLang(store.get(KEY_LANG, lang));
