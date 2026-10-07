@@ -9,8 +9,10 @@ export default defineConfig({
       name: "simulado pspo api",
       source: "api/index.ts",
       env: {
-        // Chave do painel do gestor (header X-Admin-Key). Fica só no .env.local.
-        ADMIN_KEY: process.env.ADMIN_KEY!,
+        // Só e-mails verificados deste domínio podem usar a API.
+        ALLOWED_EMAIL_DOMAIN: process.env.ALLOWED_EMAIL_DOMAIN!,
+        // E-mails com acesso ao painel do gestor, separados por vírgula.
+        ADMIN_EMAILS: process.env.ADMIN_EMAILS!,
         // Sites que podem chamar a API pelo navegador (CORS), separados por vírgula.
         ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS!,
       },

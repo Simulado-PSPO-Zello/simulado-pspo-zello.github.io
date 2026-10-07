@@ -16,6 +16,10 @@ CREATE TABLE IF NOT EXISTS attempts (
   topics        jsonb       NOT NULL DEFAULT '{}'::jsonb,
   CHECK (correct <= total)
 );
+-- Login (Neon Auth): cada tentativa pertence a um usuário.
+ALTER TABLE attempts ADD COLUMN IF NOT EXISTS user_id uuid;
+ALTER TABLE attempts ADD COLUMN IF NOT EXISTS email text;
+CREATE INDEX IF NOT EXISTS attempts_user_idx ON attempts (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS attempts_name_key_idx ON attempts (name_key, created_at DESC);
 CREATE INDEX IF NOT EXISTS attempts_ranking_idx  ON attempts (mode, pct DESC);
 CREATE INDEX IF NOT EXISTS attempts_created_idx  ON attempts (created_at DESC);

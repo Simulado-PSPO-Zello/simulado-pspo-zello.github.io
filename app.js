@@ -56,12 +56,22 @@
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 10000);
     try {
+      const token = await window.Auth.token();
       const res = await fetch(API_URL + path, {
         ...options,
         signal: ctrl.signal,
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(options.headers || {}),
+        },
       });
       const data = await res.json().catch(() => null);
+      // Sessão inválida ou conta de outro domínio: volta para o login.
+      if (res.status === 401 || res.status === 403 && data?.error === "forbidden_domain") {
+        await window.Auth.signOut();
+        showLogin(res.status === 403 ? t("errForbidden", window.Auth.domain) : "");
+      }
       return { ok: res.ok, status: res.status, data };
     } finally {
       clearTimeout(timer);
@@ -74,19 +84,23 @@
     try {
       const r = await api("/attempts", { method: "POST", body: JSON.stringify(payload) });
       if (r.ok) return "saved";
-      if (r.status === 429 || r.status >= 500) return "retry";
+      // 401: sessão expirou; guarda e reenvia depois do novo login.
+      if (r.status === 401 || r.status === 429 || r.status >= 500) return "retry";
       return "rejected";
     } catch {
       return "retry";
     }
   }
 
+  // Reenvia só as pendências da pessoa logada (o aparelho pode ser compartilhado).
   async function flushPending() {
     const pending = store.get(KEY_PENDING, []);
-    if (!pending.length) return;
+    const me = window.Auth.user?.email;
+    if (!pending.length || !me) return;
     const still = [];
     for (const p of pending) {
-      if ((await sendAttempt(p)) === "retry") still.push(p);
+      if (p.owner !== me) { still.push(p); continue; }
+      if ((await sendAttempt(p.payload)) === "retry") still.push(p);
     }
     store.set(KEY_PENDING, still);
   }
@@ -100,7 +114,8 @@
       el.className = "cloud-status ok";
       el.textContent = t("cloudSaved");
     } else if (result === "retry") {
-      store.set(KEY_PENDING, [...store.get(KEY_PENDING, []), payload].slice(-20));
+      const entry = { owner: window.Auth.user?.email, payload };
+      store.set(KEY_PENDING, [...store.get(KEY_PENDING, []), entry].slice(-20));
       el.className = "cloud-status warn";
       el.textContent = t("cloudQueued");
     } else {
@@ -126,18 +141,92 @@
     }
   }
 
-  async function renderCloudHistory(name) {
+  async function renderCloudHistory() {
     const box = $("history-cloud");
-    name = (name || "").trim();
-    if (!name) { box.innerHTML = ""; return; }
     box.innerHTML = `<p class="muted small">${t("loading")}</p>`;
     try {
-      const r = await api(`/history?name=${encodeURIComponent(name)}`);
+      const r = await api("/me/history");
       if (!r.ok) throw new Error(String(r.status));
-      box.innerHTML = r.data.length ? historyTable(r.data) : `<p class="muted">${esc(t("historyNoneForName", name))}</p>`;
+      box.innerHTML = r.data.length ? historyTable(r.data) : `<p class="muted">${t("historyEmpty")}</p>`;
     } catch {
       box.innerHTML = `<p class="muted small">${t("offline")}</p>`;
     }
+  }
+
+  // ---------- login ----------
+  let loginEmail = "";
+
+  function renderLoginTexts() {
+    const d = window.Auth.domain;
+    $("login-sub").textContent = t("loginSub", d);
+    $("login-email").placeholder = t("emailPlaceholder", d);
+    if (loginEmail) $("login-sent").textContent = t("codeSentTo", loginEmail);
+  }
+
+  function loginError(msg) {
+    $("login-error").textContent = msg || "";
+    $("login-error").classList.toggle("hidden", !msg);
+  }
+
+  function loginStep(step) {
+    $("login-email-form").classList.toggle("hidden", step !== "email");
+    $("login-code-form").classList.toggle("hidden", step !== "code");
+    (step === "email" ? $("login-email") : $("login-code")).focus();
+  }
+
+  function showLogin(message = "") {
+    clearInterval(tickHandle);
+    $("name-dialog").close?.();
+    $("confirm-dialog").close?.();
+    setLang(store.get(KEY_LANG, lang));
+    show("login");
+    renderLoginTexts();
+    loginStep("email");
+    loginError(message);
+  }
+
+  const busy = (btn, on, label) => {
+    btn.disabled = on;
+    btn.textContent = t(on ? label : btn.dataset.i18n);
+  };
+
+  async function requestCode() {
+    const email = $("login-email").value.trim().toLowerCase();
+    loginError("");
+    if (!window.Auth.isAllowed(email)) { loginError(t("errDomain", window.Auth.domain)); return; }
+    busy($("btn-send-code"), true, "sendingCode");
+    const r = await window.Auth.sendCode(email).catch(() => ({ error: "network" }));
+    busy($("btn-send-code"), false);
+    if (r.error) { loginError(/TOO_MANY/i.test(r.error) ? t("errTooMany") : t("errSend")); return; }
+    loginEmail = email;
+    $("login-code").value = "";
+    renderLoginTexts();
+    loginStep("code");
+  }
+
+  async function verifyCode() {
+    loginError("");
+    busy($("btn-verify"), true, "verifying");
+    const r = await window.Auth.verifyCode(loginEmail, $("login-code").value).catch(() => ({ error: "network" }));
+    busy($("btn-verify"), false);
+    if (r.error || !r.user) { loginError(/TOO_MANY/i.test(r.error || "") ? t("errTooMany") : t("errCode")); return; }
+    if (!window.Auth.isAllowed(r.user.email)) {
+      await window.Auth.signOut();
+      loginStep("email");
+      loginError(t("errForbidden", window.Auth.domain));
+      return;
+    }
+    loginEmail = "";
+    afterLogin();
+  }
+
+  // Nome sugerido no Modo Prova: o último usado, o nome da conta ou o começo do e-mail.
+  function suggestedName() {
+    const u = window.Auth.user;
+    if (store.get(KEY_NAME, "")) return store.get(KEY_NAME, "");
+    if (u?.name) return u.name;
+    const local = (u?.email || "").split("@")[0];
+    return local.split(/[._-]+/).filter(Boolean).map((p) => p[0].toUpperCase() + p.slice(1)).join(" ");
   }
 
   // ---------- utilidades ----------
@@ -193,10 +282,13 @@
 
   // ---------- telas ----------
   function show(screen) {
-    for (const s of ["home", "quiz", "result"]) $(`screen-${s}`).classList.toggle("hidden", s !== screen);
+    for (const s of ["login", "home", "quiz", "result"]) $(`screen-${s}`).classList.toggle("hidden", s !== screen);
     $("exam-status").classList.toggle("hidden", screen !== "quiz");
-    // O idioma só pode ser trocado na tela inicial; a prova segue no idioma em que começou.
-    $("lang-switch").classList.toggle("hidden", screen !== "home");
+    // O idioma só pode ser trocado fora da prova; a prova segue no idioma em que começou.
+    $("lang-switch").classList.toggle("hidden", screen !== "home" && screen !== "login");
+    const u = window.Auth.user;
+    $("user-box").classList.toggle("hidden", !u || screen === "login" || screen === "quiz");
+    $("user-email").textContent = u?.email || "";
     window.scrollTo(0, 0);
   }
 
@@ -502,30 +594,44 @@
     setLang(store.get(KEY_LANG, lang));
     renderHistory();
     show("home");
-    const lastName = store.get(KEY_NAME, "");
-    $("history-name").value = lastName;
     // Envia pendências primeiro, para o ranking e o histórico já virem atualizados.
     flushPending().finally(() => {
       renderRanking();
-      renderCloudHistory(lastName);
+      renderCloudHistory();
     });
+  }
+
+  // Depois do login (ou com sessão restaurada): retoma prova em andamento ou vai ao início.
+  function afterLogin() {
+    const saved = store.get(KEY_STATE, null);
+    if (saved && saved.questions) {
+      state = saved;
+      state.lastSwitch = Date.now(); // tempo com a página fechada não conta para a questão
+      setLang(state.lang || "pt");
+      if (state.mode === "exam" && Date.now() >= state.deadline) finish(true);
+      else enterQuiz();
+    } else {
+      goHome();
+    }
   }
 
   // ---------- eventos ----------
   document.querySelectorAll("#lang-switch button").forEach((b) => b.addEventListener("click", () => {
     store.set(KEY_LANG, b.dataset.lang);
     setLang(b.dataset.lang);
+    if (!window.Auth.user) { renderLoginTexts(); return; }
     renderHistory();
     renderRanking();
-    renderCloudHistory($("history-name").value);
+    renderCloudHistory();
   }));
-  $("history-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    renderCloudHistory($("history-name").value);
-  });
+  $("login-email-form").addEventListener("submit", (e) => { e.preventDefault(); requestCode(); });
+  $("login-code-form").addEventListener("submit", (e) => { e.preventDefault(); verifyCode(); });
+  $("btn-change-email").addEventListener("click", () => { loginEmail = ""; loginError(""); loginStep("email"); });
+  $("btn-resend").addEventListener("click", () => { $("login-email").value = loginEmail; requestCode(); });
+  $("btn-signout").addEventListener("click", async () => { await window.Auth.signOut(); showLogin(); });
   document.querySelectorAll(".mode-card").forEach((b) => b.addEventListener("click", () => {
     if (b.dataset.mode !== "exam") { start(b.dataset.mode); return; }
-    $("name-input").value = store.get(KEY_NAME, "");
+    $("name-input").value = suggestedName();
     $("name-dialog").showModal();
     $("name-input").select();
   }));
@@ -561,15 +667,7 @@
   $("confirm-yes").addEventListener("click", () => { $("confirm-dialog").close(); finish(false); });
   $("btn-home").addEventListener("click", goHome);
 
-  // ---------- retomada ----------
-  const saved = store.get(KEY_STATE, null);
-  if (saved && saved.questions) {
-    state = saved;
-    state.lastSwitch = Date.now(); // tempo com a página fechada não conta para a questão
-    setLang(state.lang || "pt");
-    if (state.mode === "exam" && Date.now() >= state.deadline) finish(true);
-    else enterQuiz();
-  } else {
-    goHome();
-  }
+  // ---------- início: exige login ----------
+  setLang(store.get(KEY_LANG, lang));
+  window.Auth.init().then((user) => (user ? afterLogin() : showLogin()));
 })();

@@ -234,3 +234,22 @@ dialog h2 { margin-bottom: 4px; }
 .cloud-status.warn { background: var(--warn-soft); color: var(--warn); }
 .rank-1 td:first-child { color: #fbbf24; font-weight: 700; }
 .table-wrap { overflow-x: auto; }
+
+/* Login */
+.login-panel { max-width: 440px; margin: 48px auto; padding: 28px; }
+.login-panel h1 { font-size: 1.5rem; margin-bottom: 8px; }
+.login-form { margin-top: 20px; }
+.field-label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); margin-bottom: -4px; }
+.code-input { font-size: 1.4rem; letter-spacing: .4em; text-align: center; font-variant-numeric: tabular-nums; }
+.login-links { display: flex; justify-content: space-between; margin-top: 12px; }
+.link-btn { font: inherit; font-size: .85rem; background: none; border: 0; padding: 4px 0; color: var(--primary-text); cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+.link-btn:disabled { color: var(--muted); cursor: not-allowed; text-decoration: none; }
+.login-error { margin: 16px 0 0; padding: 10px 14px; border-radius: 8px; background: var(--bad-soft); color: var(--bad); font-size: .9rem; }
+.user-box { display: flex; align-items: center; gap: 10px; margin-left: auto; margin-right: 12px; }
+.user-email { font-size: .85rem; color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-small { padding: 5px 12px; font-size: .8rem; }
+@media (max-width: 800px) {
+  .user-email { display: none; }
+  .login-panel { margin: 16px auto; padding: 20px; }
+}

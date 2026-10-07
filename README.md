@@ -39,21 +39,24 @@ O banco tem **251 questões**, cada uma em PT e EN. A cada prova, 80 são sortea
 | Release e Entrega de Valor | 10 | 32 |
 | Fundamentos do Scrum | 7 | 23 |
 
-## Nuvem (Neon)
+## Login e nuvem (Neon)
 
-Os resultados do Modo Prova são salvos num banco Postgres no [Neon](https://neon.com), através de uma API no **Neon Functions** (`api/index.ts`). A senha do banco nunca vai para o navegador.
+**Acesso restrito a e-mails `@zello.tec.br`.** A pessoa digita o e-mail corporativo, recebe um código no e-mail e entra (Neon Auth, sem senha). A API confere em toda requisição que o e-mail é verificado e do domínio permitido; a checagem na tela é só para orientar.
 
-- **Ranking:** melhor nota de cada pessoa, na tela inicial.
-- **Histórico na nuvem:** a pessoa busca pelo nome e vê as próprias provas em qualquer aparelho.
-- **Painel do gestor:** `admin.html`, protegido pela chave de administrador (`ADMIN_KEY`). Mostra todas as tentativas, desempenho por área, questões que mais derrubam e exportação em CSV.
-- **Sem conexão:** o resultado fica guardado no aparelho e é enviado automaticamente depois.
+Os resultados do Modo Prova são salvos num Postgres no [Neon](https://neon.com), através de uma API no **Neon Functions** (`api/index.ts`). A senha do banco nunca vai para o navegador.
+
+- **Ranking:** melhor nota de cada pessoa (mostra o nome, nunca o e-mail).
+- **Meu histórico:** as provas da pessoa logada, em qualquer aparelho.
+- **Painel do gestor:** `admin.html`, liberado só para os e-mails em `ADMIN_EMAILS`. Mostra todas as tentativas, desempenho por área, questões que mais derrubam e exportação em CSV.
+- **Sem conexão:** o resultado fica guardado no aparelho e é enviado depois, só para a conta de quem fez a prova.
 
 | Rota | Acesso | O que faz |
 | --- | --- | --- |
-| `POST /attempts` | público | Grava uma tentativa (a nota é recalculada no servidor) |
-| `GET /ranking` | público | Top 20, melhor nota por pessoa |
-| `GET /history?name=` | público | Tentativas de um nome |
-| `GET /admin/summary`, `/admin/attempts`, `/admin/questions` | `X-Admin-Key` | Dados do painel do gestor |
+| `GET /me` | logado | E-mail, nome e se é gestor |
+| `POST /attempts` | logado | Grava uma tentativa (a nota é recalculada no servidor) |
+| `GET /ranking` | logado | Top 20, melhor nota por pessoa |
+| `GET /me/history` | logado | Tentativas da pessoa logada |
+| `GET /admin/summary`, `/admin/attempts`, `/admin/questions` | gestor | Dados do painel |
 
 ### Rodar e publicar a API
 
@@ -61,9 +64,10 @@ Os resultados do Modo Prova são salvos num banco Postgres no [Neon](https://neo
 npm install
 neon dev                          # roda a API localmente
 neon deploy --env .env.local      # publica no Neon
+npm run build:auth                # regenera vendor/neon-auth.js (cliente de login)
 ```
 
-O `.env.local` (fora do Git) precisa ter `ADMIN_KEY` e `ALLOWED_ORIGINS` (sites que podem chamar a API, separados por vírgula), além das variáveis que o `neon env pull` gera. O endereço público da API fica em `config.js`.
+O `.env.local` (fora do Git) precisa ter `ALLOWED_ORIGINS` (sites que podem chamar a API), `ALLOWED_EMAIL_DOMAIN` e `ADMIN_EMAILS`, além das variáveis que o `neon env pull` gera. Os endereços públicos ficam em `config.js`. Um site novo também precisa ser cadastrado no Neon Auth: `neon neon-auth domain add https://site`.
 
 ## Adicionando questões
 

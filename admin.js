@@ -1,6 +1,5 @@
 (() => {
   const API_URL = (window.API_URL || "").replace(/\/$/, "");
-  const KEY = "pspo-admin-key"; // sessionStorage: some ao fechar o navegador
   const PASS_PCT = 85;
   const TOPICS = window.I18N.pt.topics;
   const $ = (id) => document.getElementById(id);
@@ -11,18 +10,13 @@
   };
   const fmtDate = (d) => new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
-  const session = {
-    get() { try { return sessionStorage.getItem(KEY) || ""; } catch { return ""; } },
-    set(v) { try { sessionStorage.setItem(KEY, v); } catch { /* sem storage */ } },
-    clear() { try { sessionStorage.removeItem(KEY); } catch { /* sem storage */ } },
-  };
-
   let attempts = [];
   let modeFilter = "all";
 
   async function api(path) {
-    const res = await fetch(API_URL + path, { headers: { "X-Admin-Key": session.get() } });
-    if (res.status === 401) throw Object.assign(new Error("unauthorized"), { status: 401 });
+    const token = await window.Auth.token();
+    const res = await fetch(API_URL + path, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (res.status === 401 || res.status === 403) throw Object.assign(new Error("unauthorized"), { status: res.status });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   }
@@ -31,8 +25,7 @@
     $("login").classList.remove("hidden");
     $("dashboard").classList.add("hidden");
     $("btn-logout").classList.add("hidden");
-    $("login-error").classList.toggle("hidden", !message);
-    $("login-error").textContent = message || "";
+    if (message) $("login-msg").textContent = message;
   }
 
   async function load() {
@@ -46,7 +39,8 @@
       renderAttempts();
       renderQuestions(questions);
     } catch (e) {
-      if (e.status === 401) { session.clear(); showLogin("Chave inválida."); }
+      if (e.status === 403) showLogin(`A conta ${window.Auth.user?.email ?? ""} não tem acesso ao painel do gestor.`);
+      else if (e.status === 401) showLogin("Sua sessão expirou. Entre de novo pelo simulado.");
       else showLogin("Não foi possível falar com o servidor. Tente de novo em instantes.");
     }
   }
@@ -74,19 +68,19 @@
   function filtered() {
     const q = $("filter-name").value.trim().toLocaleLowerCase("pt-BR");
     return attempts.filter((a) =>
-      (!q || a.name.toLocaleLowerCase("pt-BR").includes(q)) &&
+      (!q || a.name.toLocaleLowerCase("pt-BR").includes(q) || (a.email || "").includes(q)) &&
       (modeFilter === "all" || (modeFilter === "exam" && a.mode === "exam") || (modeFilter === "passed" && a.pass)));
   }
 
   function renderAttempts() {
     const list = filtered();
     $("attempts").innerHTML = list.length ? `<div class="table-wrap"><table>
-      <thead><tr><th>Data</th><th>Nome</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th><th>Pior área</th></tr></thead><tbody>
+      <thead><tr><th>Data</th><th>Nome</th><th>E-mail</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th><th>Pior área</th></tr></thead><tbody>
       ${list.map((a) => {
         const worst = Object.entries(a.topics || {})
           .map(([k, v]) => [k, v.correct / v.total]).sort((x, y) => x[1] - y[1])[0];
         return `<tr>
-          <td>${fmtDate(a.date)}</td><td>${esc(a.name)}</td>
+          <td>${fmtDate(a.date)}</td><td>${esc(a.name)}</td><td class="small muted">${esc(a.email || "-")}</td>
           <td>${a.mode === "exam" ? "Prova" : "Estudo"} · ${a.lang.toUpperCase()}</td>
           <td>${a.pct}%</td><td>${a.correct}/${a.total}</td>
           <td>${fmtTime(a.duration)}${a.timeUp ? " ⏱" : ""}</td>
@@ -113,9 +107,9 @@
 
   function exportCsv() {
     const cell = (v) => `"${String(v).replace(/"/g, '""')}"`;
-    const head = ["data", "nome", "modo", "idioma", "nota", "acertos", "total", "tempo_seg", "aprovado", ...Object.keys(TOPICS).map((k) => `area_${k}_pct`)];
+    const head = ["data", "nome", "email", "modo", "idioma", "nota", "acertos", "total", "tempo_seg", "aprovado", ...Object.keys(TOPICS).map((k) => `area_${k}_pct`)];
     const lines = filtered().map((a) => [
-      new Date(a.date).toISOString(), a.name, a.mode, a.lang, a.pct, a.correct, a.total, a.duration, a.pass ? "sim" : "nao",
+      new Date(a.date).toISOString(), a.name, a.email || "", a.mode, a.lang, a.pct, a.correct, a.total, a.duration, a.pass ? "sim" : "nao",
       ...Object.keys(TOPICS).map((k) => (a.topics?.[k] ? Math.round((a.topics[k].correct / a.topics[k].total) * 100) : "")),
     ].map(cell).join(";"));
     const blob = new Blob(["﻿" + [head.map(cell).join(";"), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
@@ -126,13 +120,7 @@
     URL.revokeObjectURL(a.href);
   }
 
-  $("login-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    session.set($("admin-key").value.trim());
-    $("admin-key").value = "";
-    load();
-  });
-  $("btn-logout").addEventListener("click", () => { session.clear(); showLogin(); });
+  $("btn-logout").addEventListener("click", async () => { await window.Auth.signOut(); location.href = "index.html"; });
   $("filter-name").addEventListener("input", renderAttempts);
   document.querySelectorAll(".chip[data-mode]").forEach((c) => c.addEventListener("click", () => {
     modeFilter = c.dataset.mode;
@@ -141,5 +129,9 @@
   }));
   $("btn-csv").addEventListener("click", exportCsv);
 
-  if (session.get()) load(); else showLogin();
+  window.Auth.init().then((user) => {
+    if (!user) { showLogin(); return; }
+    $("admin-email").textContent = user.email;
+    load();
+  });
 })();

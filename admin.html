@@ -15,20 +15,17 @@
     <div class="brand">Painel do Gestor <strong>PSPO I</strong></div>
     <div class="exam-status">
       <a class="btn" href="index.html">Ir para o simulado</a>
+      <span id="admin-email" class="user-email"></span>
       <button id="btn-logout" class="btn hidden">Sair</button>
     </div>
   </header>
 
   <main>
     <!-- Acesso -->
-    <section id="login" class="panel login-panel">
+    <section id="login" class="panel login-panel hidden">
       <h2>Acesso do gestor</h2>
-      <p class="muted small">Informe a chave de administrador. Ela fica guardada só nesta aba e some ao fechar o navegador.</p>
-      <form id="login-form" class="search-row">
-        <input id="admin-key" class="input" type="password" autocomplete="current-password" placeholder="Chave de administrador" required>
-        <button type="submit" class="btn btn-primary">Entrar</button>
-      </form>
-      <p id="login-error" class="fail-txt small hidden"></p>
+      <p id="login-msg" class="muted">Entre no simulado com o seu e-mail corporativo e volte para esta página.</p>
+      <a class="btn btn-primary btn-block" href="index.html">Ir para o login</a>
     </section>
 
     <section id="dashboard" class="hidden">
@@ -49,7 +46,7 @@
             <button id="btn-csv" class="chip">Exportar CSV</button>
           </div>
         </div>
-        <input id="filter-name" class="input" type="search" placeholder="Filtrar por nome">
+        <input id="filter-name" class="input" type="search" placeholder="Filtrar por nome ou e-mail">
         <div id="attempts"></div>
       </div>
 
@@ -62,6 +59,8 @@
   </main>
 
   <script src="config.js"></script>
+  <script src="vendor/neon-auth.js"></script>
+  <script src="auth.js"></script>
   <script src="i18n.js"></script>
   <script src="questions.js"></script>
   <script src="admin.js"></script>

@@ -16,6 +16,10 @@
       <button type="button" data-lang="pt">PT</button>
       <button type="button" data-lang="en">EN</button>
     </div>
+    <div id="user-box" class="user-box hidden">
+      <span id="user-email" class="user-email"></span>
+      <button type="button" id="btn-signout" class="btn btn-small" data-i18n="signOut">Sair</button>
+    </div>
     <div id="exam-status" class="exam-status hidden">
       <span id="candidate" class="candidate"></span>
       <span id="progress-text"></span>
@@ -24,8 +28,35 @@
   </header>
 
   <main>
+    <!-- Login (código por e-mail) -->
+    <section id="screen-login" class="screen hidden">
+      <div class="panel login-panel">
+        <h1 data-i18n="loginTitle">Entrar no simulado</h1>
+        <p id="login-sub" class="muted"></p>
+
+        <form id="login-email-form" class="login-form">
+          <label for="login-email" class="field-label" data-i18n="emailLabel">E-mail corporativo</label>
+          <input id="login-email" class="input" type="email" autocomplete="email" inputmode="email" required>
+          <button type="submit" id="btn-send-code" class="btn btn-primary btn-block" data-i18n="sendCode">Enviar código</button>
+        </form>
+
+        <form id="login-code-form" class="login-form hidden">
+          <p id="login-sent" class="muted small"></p>
+          <label for="login-code" class="field-label" data-i18n="codeLabel">Código de acesso</label>
+          <input id="login-code" class="input code-input" type="text" autocomplete="one-time-code" inputmode="numeric" maxlength="10" required>
+          <button type="submit" id="btn-verify" class="btn btn-primary btn-block" data-i18n="verify">Entrar</button>
+          <div class="login-links">
+            <button type="button" id="btn-change-email" class="link-btn" data-i18n="changeEmail">Usar outro e-mail</button>
+            <button type="button" id="btn-resend" class="link-btn" data-i18n="resend">Reenviar código</button>
+          </div>
+        </form>
+
+        <p id="login-error" class="login-error hidden" role="alert"></p>
+      </div>
+    </section>
+
     <!-- Tela inicial -->
-    <section id="screen-home" class="screen">
+    <section id="screen-home" class="screen hidden">
       <div class="hero">
         <h1 data-i18n="heroTitle">Treine para a certificação PSPO I</h1>
         <p class="muted" data-i18n="heroSub">Simulado nas mesmas condições da prova oficial.</p>
@@ -55,11 +86,7 @@
 
       <div id="history" class="panel">
         <h2 data-i18n="historyTitle">Histórico de tentativas</h2>
-        <p class="muted small" data-i18n="historyCloudHint">Digite o nome usado no Modo Prova para ver as tentativas salvas na nuvem, em qualquer aparelho.</p>
-        <form id="history-form" class="search-row">
-          <input id="history-name" class="input" type="text" maxlength="60" autocomplete="name" placeholder="Nome" data-i18n-placeholder="searchName">
-          <button type="submit" class="btn btn-primary" data-i18n="search">Buscar</button>
-        </form>
+        <p class="muted small" data-i18n="myHistoryHint">Suas provas salvas na nuvem, em qualquer aparelho.</p>
         <div id="history-cloud"></div>
         <h3 class="local-title" data-i18n="localTitle">Neste aparelho</h3>
         <div id="history-body"></div>
@@ -156,6 +183,8 @@
   </dialog>
 
   <script src="config.js"></script>
+  <script src="vendor/neon-auth.js"></script>
+  <script src="auth.js"></script>
   <script src="i18n.js"></script>
   <script src="questions.js"></script>
   <script src="questions-en.js"></script>
