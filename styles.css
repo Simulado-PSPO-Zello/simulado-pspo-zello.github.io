@@ -188,6 +188,15 @@ dialog {
   background: var(--surface); color: var(--text); padding: 20px; max-width: 420px;
 }
 dialog::backdrop { background: rgba(0,0,0,.45); }
+dialog h2 { margin-bottom: 4px; }
+.input {
+  width: 100%; margin: 12px 0 16px; padding: 10px 12px;
+  font: inherit; font-size: .95rem; color: #fff;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.input::placeholder { color: #6b7385; }
+.input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(244, 91, 60, .25); }
+.candidate { font-weight: 600; color: var(--text); max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
 
 @media (max-width: 800px) {
   .quiz-layout { grid-template-columns: 1fr; }
@@ -198,5 +207,6 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   .topic-row { grid-template-columns: 1fr 70px; }
   .topic-row .bar { grid-column: 1 / -1; grid-row: 2; }
   .exam-status { gap: 8px; font-size: .85rem; }
+  .candidate { display: none; }
   .topbar { padding: 10px 16px; }
 }

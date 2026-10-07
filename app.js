@@ -3,6 +3,7 @@
   const IDEAL_SEC = (EXAM.minutes * 60) / EXAM.questions; // 45 s por questão
   const KEY_STATE = "pspo-state";
   const KEY_HISTORY = "pspo-history";
+  const KEY_NAME = "pspo-last-name";
   // Quantas questões de cada área entram nas 80. Product Backlog é o "coração da prova".
   const TOPIC_QUOTA = {
     "Gestão do Product Backlog": 22,
@@ -79,11 +80,12 @@
   }
 
   // ---------- início ----------
-  function start(mode) {
+  function start(mode, name = "") {
     const qs = pickQuestions().map(prepareQuestion);
     const now = Date.now();
     state = {
       mode,
+      name,
       questions: qs,
       answers: qs.map(() => []),
       checked: qs.map(() => false),
@@ -101,6 +103,7 @@
   function enterQuiz() {
     show("quiz");
     $("timer").classList.toggle("hidden", state.mode !== "exam");
+    $("candidate").textContent = state.name || "";
     clearInterval(tickHandle);
     tickHandle = setInterval(tick, 1000);
     tick();
@@ -246,6 +249,7 @@
     const summary = {
       date: finishedAt,
       mode: state.mode,
+      name: state.name || "",
       correct, total, pct,
       pass: pct >= EXAM.passPct,
       duration: (finishedAt - state.startedAt) / 1000,
@@ -269,6 +273,7 @@
     badge.className = `badge ${s.pass ? "pass" : "fail"}`;
     $("result-pct").textContent = `${s.pct}%`;
     $("result-detail").textContent =
+      (s.name ? `${s.name} · ` : "") +
       `${s.correct} de ${s.total} corretas · mínimo ${EXAM.passPct}% (${Math.ceil(s.total * EXAM.passPct / 100)} acertos)` +
       (s.timeUp ? " · tempo esgotado" : "") + (s.mode === "study" ? " · modo estudo" : "");
 
@@ -341,9 +346,10 @@
     const avg = exams.length ? exams.reduce((t, x) => t + x.pct, 0) / exams.length : null;
     $("history-body").innerHTML = `
       <p class="muted small">${exams.length} prova(s) · melhor nota ${best ?? "-"}% · média ${avg != null ? avg.toFixed(1) : "-"}% · aprovações ${exams.filter((x) => x.pass).length}</p>
-      <table><thead><tr><th>Data</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th></tr></thead><tbody>
+      <table><thead><tr><th>Data</th><th>Nome</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th></tr></thead><tbody>
       ${h.map((x) => `<tr>
         <td>${new Date(x.date).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td>
+        <td>${esc(x.name || "-")}</td>
         <td>${x.mode === "exam" ? "Prova" : "Estudo"}</td>
         <td>${x.pct}%</td>
         <td>${x.correct}/${x.total}</td>
@@ -362,7 +368,19 @@
   }
 
   // ---------- eventos ----------
-  document.querySelectorAll(".mode-card").forEach((b) => b.addEventListener("click", () => start(b.dataset.mode)));
+  document.querySelectorAll(".mode-card").forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.mode !== "exam") { start(b.dataset.mode); return; }
+    $("name-input").value = store.get(KEY_NAME, "");
+    $("name-dialog").showModal();
+    $("name-input").select();
+  }));
+  $("name-form").addEventListener("submit", (e) => {
+    const name = $("name-input").value.trim();
+    if (!name) { e.preventDefault(); $("name-input").focus(); return; }
+    store.set(KEY_NAME, name);
+    start("exam", name);
+  });
+  $("name-cancel").addEventListener("click", () => $("name-dialog").close());
   $("q-options").addEventListener("change", onOptionChange);
   $("btn-prev").addEventListener("click", () => goTo(state.current - 1));
   $("btn-next").addEventListener("click", () => {

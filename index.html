@@ -13,6 +13,7 @@
   <header class="topbar">
     <div class="brand">Simulado <strong>PSPO I</strong></div>
     <div id="exam-status" class="exam-status hidden">
+      <span id="candidate" class="candidate"></span>
       <span id="progress-text"></span>
       <span id="timer" class="timer">60:00</span>
     </div>
@@ -116,6 +117,18 @@
       </div>
     </section>
   </main>
+
+  <dialog id="name-dialog">
+    <form id="name-form" method="dialog">
+      <h2>Quem vai fazer a prova?</h2>
+      <p class="muted small">O nome fica salvo no resultado e no histórico de tentativas.</p>
+      <input id="name-input" class="input" type="text" placeholder="Seu nome" maxlength="60" autocomplete="name" required>
+      <div class="q-actions">
+        <button type="button" id="name-cancel" class="btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Iniciar prova</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="confirm-dialog">
     <p id="confirm-text"></p>
