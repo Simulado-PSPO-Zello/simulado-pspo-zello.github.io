@@ -253,3 +253,82 @@ dialog h2 { margin-bottom: 4px; }
   .user-email { display: none; }
   .login-panel { margin: 16px auto; padding: 20px; }
 }
+
+/* ---------- Tela de login (modelo Zello: marca à esquerda, cartão à direita) ---------- */
+body.on-login main { max-width: none; padding: 0; }
+body.on-login .topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  background: transparent; border-bottom: 0; justify-content: flex-end;
+  padding: 20px 28px; z-index: 5;
+}
+body.on-login .topbar .brand { display: none; }
+
+.login-screen {
+  display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh;
+  background: #1c1f27;
+}
+.login-hero {
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 36px 40px 32px;
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(244, 91, 60, .14), transparent 55%),
+    radial-gradient(ellipse at 80% 90%, rgba(244, 91, 60, .06), transparent 50%),
+    linear-gradient(160deg, #23252d 0%, #191b22 100%);
+}
+.login-brand { display: flex; align-items: center; gap: 12px; }
+.logo-z {
+  display: grid; place-items: center; width: 38px; height: 38px; border-radius: 9px;
+  background: var(--primary); color: #fff;
+  font-family: var(--font-display); font-weight: 800; font-size: 1.2rem; font-style: italic;
+  box-shadow: 0 6px 18px -6px rgba(244, 91, 60, .6);
+}
+.login-brand-text { display: flex; flex-direction: column; line-height: 1.25; }
+.login-brand-text strong { font-family: var(--font-display); font-size: 1rem; letter-spacing: .02em; color: #fff; }
+.login-brand-text span { font-size: .8rem; color: var(--muted); }
+
+.login-hero-text { max-width: 380px; }
+.login-hero-text h2 { font-family: var(--font-display); font-size: 2rem; line-height: 1.2; color: #fff; margin: 0 0 16px; }
+.login-hero-text p { color: #b8bfcc; margin: 0 0 18px; }
+.accent-bar { display: block; width: 52px; height: 3px; border-radius: 3px; background: var(--primary); }
+
+.login-footer { display: flex; flex-direction: column; gap: 4px; font-size: .75rem; color: #7d8596; }
+.login-footer-label { color: #5d6474; }
+.login-footer a { color: #c5cbd6; text-decoration: none; }
+.login-footer a:hover { color: var(--primary-text); text-decoration: underline; }
+.login-footer-copy { margin-top: 6px; color: #5d6474; }
+
+.login-side {
+  display: flex; align-items: center; justify-content: center; padding: 32px;
+  background: radial-gradient(ellipse at 70% 30%, rgba(255, 255, 255, .03), transparent 60%), #1e2129;
+}
+.login-screen .login-panel {
+  width: 100%; max-width: 380px; margin: 0; padding: 24px;
+  background: #2a2d36; border: 1px solid #3b3f4b; border-radius: 14px;
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, .6);
+}
+.login-screen .login-panel h1 { font-size: 1.35rem; margin: 0 0 4px; color: #fff; }
+.login-screen .login-panel .input { background: #23262e; border-color: #3b3f4b; }
+.login-screen .login-form { margin-top: 18px; }
+
+@media (max-width: 800px) {
+  .login-screen { grid-template-columns: 1fr; }
+  .login-hero { padding: 72px 20px 8px; gap: 24px; }
+  .login-hero-text h2 { font-size: 1.5rem; }
+  .login-hero-text p { font-size: .9rem; }
+  .login-footer { display: none; }
+  .login-side { align-items: flex-start; padding: 16px 16px 32px; }
+  .login-screen .login-panel { padding: 20px; }
+  body.on-login .topbar { padding: 16px; }
+}
+/* No celular o rodapé do herói some; mostra o contato abaixo do cartão. */
+.login-footer-mobile { display: none; }
+@media (max-width: 800px) {
+  .login-footer-mobile { display: flex; flex-direction: column; gap: 2px; align-items: center; margin-top: 20px; font-size: .75rem; color: #7d8596; }
+  .login-footer-mobile a { color: #c5cbd6; text-decoration: none; }
+}
+/* Cartão e contato empilhados na coluna da direita. */
+.login-side { flex-direction: column; }
+@media (max-width: 800px) {
+  .login-side { align-items: stretch; }
+  .login-screen .login-panel { max-width: none; }
+}

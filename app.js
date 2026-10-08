@@ -290,6 +290,8 @@
   // ---------- telas ----------
   function show(screen) {
     for (const s of ["login", "home", "quiz", "result"]) $(`screen-${s}`).classList.toggle("hidden", s !== screen);
+    // A tela de login ocupa a página inteira (layout em duas colunas, sem o cabeçalho).
+    document.body.classList.toggle("on-login", screen === "login");
     $("exam-status").classList.toggle("hidden", screen !== "quiz");
     // O idioma só pode ser trocado fora da prova; a prova segue no idioma em que começou.
     $("lang-switch").classList.toggle("hidden", screen !== "home" && screen !== "login");

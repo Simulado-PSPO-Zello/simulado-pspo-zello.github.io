@@ -29,10 +29,35 @@
 
   <main>
     <!-- Login (código por e-mail) -->
-    <section id="screen-login" class="screen hidden">
+    <section id="screen-login" class="screen login-screen hidden">
+      <!-- Lado esquerdo: marca e apresentação -->
+      <div class="login-hero">
+        <div class="login-brand">
+          <span class="logo-z" aria-hidden="true">Z</span>
+          <div class="login-brand-text">
+            <strong>ZELLO</strong>
+            <span data-i18n="loginTagline">Simulado PSPO I</span>
+          </div>
+        </div>
+
+        <div class="login-hero-text">
+          <h2 data-i18n="loginHeroTitle">Treine para a certificação PSPO I</h2>
+          <p data-i18n="loginHeroDesc">80 questões, 60 minutos e nota mínima de 85%, como na prova oficial. Acompanhe sua evolução por área e chegue confiante no dia da prova.</p>
+          <span class="accent-bar" aria-hidden="true"></span>
+        </div>
+
+        <footer class="login-footer">
+          <span class="login-footer-label" data-i18n="support">Suporte</span>
+          <span>Dev: <a href="mailto:eduardo.candido@zello.tec.br">eduardo.candido@zello.tec.br</a></span>
+          <span class="login-footer-copy">© 2026 Cândido</span>
+        </footer>
+      </div>
+
+      <!-- Lado direito: cartão de login -->
+      <div class="login-side">
       <div class="panel login-panel">
-        <h1 data-i18n="loginTitle">Entrar no simulado</h1>
-        <p id="login-sub" class="muted"></p>
+        <h1 data-i18n="loginTitle">Entrar</h1>
+        <p id="login-sub" class="muted small"></p>
 
         <form id="login-email-form" class="login-form">
           <label for="login-email" class="field-label" data-i18n="emailLabel">E-mail corporativo</label>
@@ -52,6 +77,11 @@
         </form>
 
         <p id="login-error" class="login-error hidden" role="alert"></p>
+      </div>
+      <footer class="login-footer-mobile">
+        <span>Dev: <a href="mailto:eduardo.candido@zello.tec.br">eduardo.candido@zello.tec.br</a></span>
+        <span>© 2026 Cândido</span>
+      </footer>
       </div>
     </section>
 
