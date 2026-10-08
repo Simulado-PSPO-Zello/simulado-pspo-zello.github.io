@@ -332,3 +332,9 @@ body.on-login .topbar .brand { display: none; }
   .login-side { align-items: stretch; }
   .login-screen .login-panel { max-width: none; }
 }
+
+/* Logo */
+.logo-img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; box-shadow: 0 6px 18px -6px rgba(244, 91, 60, .6); }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand strong { margin-left: -4px; }
+.brand-logo { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; }
