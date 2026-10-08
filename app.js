@@ -148,9 +148,15 @@
       const r = await api("/me/history");
       if (!r.ok) throw new Error(String(r.status));
       box.innerHTML = r.data.length ? historyTable(r.data) : `<p class="muted">${t("historyEmpty")}</p>`;
+      $("cloud-clear-row").classList.toggle("hidden", !r.data.length);
     } catch {
       box.innerHTML = `<p class="muted small">${t("offline")}</p>`;
     }
+  }
+
+  // Aviso simples dentro do histórico (sem alert(), que alguns navegadores bloqueiam).
+  function alertBox(msg) {
+    $("history-cloud").insertAdjacentHTML("afterbegin", `<p class="login-error">${esc(msg)}</p>`);
   }
 
   // ---------- login ----------
@@ -675,6 +681,18 @@
   $("confirm-yes").addEventListener("click", () => { $("confirm-dialog").close(); finish(false); });
   $("btn-home").addEventListener("click", goHome);
   $("clear-no").addEventListener("click", () => $("clear-dialog").close());
+  $("btn-clear-cloud").addEventListener("click", () => $("cloud-clear-dialog").showModal());
+  $("cloud-clear-no").addEventListener("click", () => $("cloud-clear-dialog").close());
+  $("cloud-clear-yes").addEventListener("click", async () => {
+    const btn = $("cloud-clear-yes");
+    btn.disabled = true;
+    const r = await api("/me/attempts", { method: "DELETE" }).catch(() => ({ ok: false }));
+    btn.disabled = false;
+    $("cloud-clear-dialog").close();
+    if (!r.ok) { alertBox(t("clearCloudFail")); return; }
+    renderRanking();
+    renderCloudHistory();
+  });
   $("clear-yes").addEventListener("click", () => {
     store.remove(KEY_HISTORY);
     $("clear-dialog").close();

@@ -1,6 +1,8 @@
 // API do Simulado PSPO, hospedada no Neon Functions.
-// Toda rota exige login (JWT do Neon Auth) de um e-mail verificado do domínio permitido.
+// Toda rota exige login de um e-mail verificado do domínio permitido: o JWT do Neon Auth
+// (logo após o código do e-mail) ou a sessão própria emitida por POST /session.
 // Rotas /admin/* exigem, além disso, que o e-mail esteja em ADMIN_EMAILS.
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import { createRemoteJWKSet, jwtVerify } from "jose";
@@ -18,6 +20,7 @@ const allowedDomain = required("ALLOWED_EMAIL_DOMAIN").trim().toLowerCase().repl
 const adminEmails = new Set(required("ADMIN_EMAILS").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
 const jwks = createRemoteJWKSet(new URL(required("NEON_AUTH_JWKS_URL")));
 const issuer = new URL(required("NEON_AUTH_BASE_URL")).origin;
+const sessionSecret = required("SESSION_SECRET");
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
 attachDatabasePool(pool);
@@ -34,6 +37,33 @@ const normName = (s: string) => s.trim().replace(/\s+/g, " ");
 const nameKey = (s: string) => normName(s).toLocaleLowerCase("pt-BR");
 
 // ---------- autenticação ----------
+
+// Sessão própria: o cookie do Neon Auth fica em outro domínio e os navegadores o bloqueiam
+// como cookie de terceiros, então a sessão se perderia ao recarregar a página.
+// Formato: "s1.<payload base64url>.<HMAC-SHA256 base64url>".
+const SESSION_DAYS = 30;
+const b64url = (buf: Buffer) => buf.toString("base64url");
+const sign = (data: string) => createHmac("sha256", sessionSecret).update(data).digest();
+
+function issueSession(sub: string) {
+  const exp = Math.floor(Date.now() / 1000) + SESSION_DAYS * 86400;
+  const payload = b64url(Buffer.from(JSON.stringify({ sub, exp })));
+  return { token: `s1.${payload}.${b64url(sign(payload))}`, exp };
+}
+
+function verifySession(token: string): string | null {
+  const [v, payload, sig] = token.split(".");
+  if (v !== "s1" || !payload || !sig) return null;
+  const expected = sign(payload);
+  const got = Buffer.from(sig, "base64url");
+  if (got.length !== expected.length || !timingSafeEqual(got, expected)) return null;
+  try {
+    const { sub, exp } = JSON.parse(Buffer.from(payload, "base64url").toString());
+    return typeof sub === "string" && exp * 1000 > Date.now() ? sub : null;
+  } catch {
+    return null;
+  }
+}
 
 type User = { id: string; email: string; name: string; isAdmin: boolean };
 type Env = { Variables: { user: User } };
@@ -59,7 +89,7 @@ const app = new Hono<Env>();
 
 app.use("*", cors({
   origin: (origin) => (allowedOrigins.includes(origin) ? origin : null),
-  allowMethods: ["GET", "POST", "OPTIONS"],
+  allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization"],
   maxAge: 86400,
 }));
@@ -71,17 +101,37 @@ app.onError((err, c) => {
 
 app.get("/", (c) => c.json({ ok: true, service: "simulado-pspo" }));
 
+// Logo após o código do e-mail, o navegador recebe o token da sessão do Neon Auth.
+// Ele é validado direto na tabela neon_auth.session (mesmo banco) e trocado pela sessão
+// própria de 30 dias, sem depender do cookie de terceiros do Neon.
+app.post("/session/exchange", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const token = typeof body?.token === "string" ? body.token.trim() : "";
+  if (token.length < 16 || token.length > 256) return c.json({ error: "unauthorized" }, 401);
+  const { rows: [row] } = await pool.query(
+    `SELECT "userId" AS user_id FROM neon_auth.session WHERE token = $1 AND "expiresAt" > now()`, [token]);
+  if (!row) return c.json({ error: "unauthorized" }, 401);
+  const user = await loadUser(row.user_id);
+  if (!user) return c.json({ error: "forbidden_domain" }, 403);
+  return c.json(issueSession(user.id));
+});
+
 // Tudo abaixo exige um token válido de um e-mail permitido.
 app.use("*", async (c, next) => {
-  if (c.req.method === "OPTIONS" || c.req.path === "/") return next();
+  if (c.req.method === "OPTIONS" || c.req.path === "/" || c.req.path === "/session/exchange") return next();
   const auth = c.req.header("authorization") ?? "";
   if (!auth.toLowerCase().startsWith("bearer ")) return c.json({ error: "unauthorized" }, 401);
-  let sub: string | undefined;
-  try {
-    const { payload } = await jwtVerify(auth.slice(7), jwks, { issuer });
-    sub = payload.sub;
-  } catch {
-    return c.json({ error: "unauthorized" }, 401);
+  const token = auth.slice(7).trim();
+  let sub: string | null | undefined;
+  if (token.startsWith("s1.")) {
+    sub = verifySession(token);
+  } else {
+    try {
+      const { payload } = await jwtVerify(token, jwks, { issuer });
+      sub = payload.sub;
+    } catch {
+      sub = null;
+    }
   }
   if (!sub) return c.json({ error: "unauthorized" }, 401);
   const user = await loadUser(sub);
@@ -90,6 +140,9 @@ app.use("*", async (c, next) => {
   await ensureSchema();
   await next();
 });
+
+// Troca o login recém-feito (JWT do Neon Auth ou sessão atual) por uma sessão de 30 dias.
+app.post("/session", (c) => c.json(issueSession(c.get("user").id)));
 
 app.get("/me", (c) => {
   const u = c.get("user");
@@ -203,6 +256,12 @@ app.get("/me/history", async (c) => {
   return c.json(rows);
 });
 
+// Apaga todas as provas da pessoa logada (histórico na nuvem e ranking).
+app.delete("/me/attempts", async (c) => {
+  const { rowCount } = await pool.query(`DELETE FROM attempts WHERE user_id = $1`, [c.get("user").id]);
+  return c.json({ deleted: rowCount ?? 0 });
+});
+
 // ---------- gestor ----------
 
 const requireAdmin = async (c: Context<Env>, next: () => Promise<void>) => {
@@ -225,6 +284,14 @@ app.get("/admin/summary", async (c) => {
        FROM attempt_answers a JOIN attempts t ON t.id = a.attempt_id
       WHERE t.mode = 'exam' GROUP BY a.topic`);
   return c.json({ ...s, topics });
+});
+
+// Apaga uma tentativa específica (ex.: dados de teste).
+app.delete("/admin/attempts/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!/^d{1,18}$/.test(id)) return c.json({ error: "invalid id" }, 400);
+  const { rowCount } = await pool.query(`DELETE FROM attempts WHERE id = $1`, [id]);
+  return rowCount ? c.json({ deleted: 1 }) : c.json({ error: "not found" }, 404);
 });
 
 app.get("/admin/attempts", async (c) => {

@@ -13,9 +13,9 @@
   let attempts = [];
   let modeFilter = "all";
 
-  async function api(path) {
+  async function api(path, options = {}) {
     const token = await window.Auth.token();
-    const res = await fetch(API_URL + path, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const res = await fetch(API_URL + path, { ...options, headers: token ? { Authorization: `Bearer ${token}` } : {} });
     if (res.status === 401 || res.status === 403) throw Object.assign(new Error("unauthorized"), { status: res.status });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
@@ -75,7 +75,7 @@
   function renderAttempts() {
     const list = filtered();
     $("attempts").innerHTML = list.length ? `<div class="table-wrap"><table>
-      <thead><tr><th>Data</th><th>Nome</th><th>E-mail</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th><th>Pior área</th></tr></thead><tbody>
+      <thead><tr><th>Data</th><th>Nome</th><th>E-mail</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th><th>Pior área</th><th></th></tr></thead><tbody>
       ${list.map((a) => {
         const worst = Object.entries(a.topics || {})
           .map(([k, v]) => [k, v.correct / v.total]).sort((x, y) => x[1] - y[1])[0];
@@ -85,7 +85,8 @@
           <td>${a.pct}%</td><td>${a.correct}/${a.total}</td>
           <td>${fmtTime(a.duration)}${a.timeUp ? " ⏱" : ""}</td>
           <td class="${a.pass ? "pass-txt" : "fail-txt"}">${a.pass ? "Aprovado" : "Reprovado"}</td>
-          <td class="small muted">${worst ? `${esc(TOPICS[worst[0]] ?? worst[0])} (${Math.round(worst[1] * 100)}%)` : "-"}</td></tr>`;
+          <td class="small muted">${worst ? `${esc(TOPICS[worst[0]] ?? worst[0])} (${Math.round(worst[1] * 100)}%)` : "-"}</td>
+          <td><button type="button" class="btn btn-danger btn-small" data-delete="${a.id}">Apagar</button></td></tr>`;
       }).join("")}
       </tbody></table></div>` : `<p class="muted">Nenhuma tentativa encontrada.</p>`;
   }
@@ -128,6 +129,33 @@
     renderAttempts();
   }));
   $("btn-csv").addEventListener("click", exportCsv);
+
+  // Apagar tentativa (janela própria: alguns navegadores bloqueiam o confirm()).
+  let pendingDelete = null;
+  $("attempts").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-delete]");
+    if (!b) return;
+    const a = attempts.find((x) => String(x.id) === b.dataset.delete);
+    if (!a) return;
+    pendingDelete = a;
+    $("delete-text").textContent = `${a.name} (${a.email || "sem e-mail"}) · ${fmtDate(a.date)} · ${a.pct}%. Isso não pode ser desfeito.`;
+    $("delete-dialog").showModal();
+  });
+  $("delete-no").addEventListener("click", () => { pendingDelete = null; $("delete-dialog").close(); });
+  $("delete-yes").addEventListener("click", async () => {
+    if (!pendingDelete) return;
+    $("delete-yes").disabled = true;
+    try {
+      await api(`/admin/attempts/${pendingDelete.id}`, { method: "DELETE" });
+      $("delete-dialog").close();
+      pendingDelete = null;
+      load();
+    } catch {
+      $("delete-text").textContent = "Não foi possível apagar agora. Tente de novo.";
+    } finally {
+      $("delete-yes").disabled = false;
+    }
+  });
 
   window.Auth.init().then((user) => {
     if (!user) { showLogin(); return; }

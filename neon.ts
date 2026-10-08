@@ -13,6 +13,8 @@ export default defineConfig({
         ALLOWED_EMAIL_DOMAIN: process.env.ALLOWED_EMAIL_DOMAIN!,
         // E-mails com acesso ao painel do gestor, separados por vírgula.
         ADMIN_EMAILS: process.env.ADMIN_EMAILS!,
+        // Assina as sessões de 30 dias emitidas pela API. Fica só no .env.local.
+        SESSION_SECRET: process.env.SESSION_SECRET!,
         // Sites que podem chamar a API pelo navegador (CORS), separados por vírgula.
         ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS!,
       },

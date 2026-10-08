@@ -121,6 +121,9 @@
         <h2 data-i18n="historyTitle">Histórico de tentativas</h2>
         <p class="muted small" data-i18n="myHistoryHint">Suas provas salvas na nuvem, em qualquer aparelho.</p>
         <div id="history-cloud"></div>
+        <div class="center hidden" id="cloud-clear-row">
+          <button type="button" id="btn-clear-cloud" class="btn btn-danger btn-small" data-i18n="clearCloudBtn">Apagar minhas provas da nuvem</button>
+        </div>
         <h3 class="local-title" data-i18n="localTitle">Neste aparelho</h3>
         <div id="history-body"></div>
       </div>
@@ -213,6 +216,15 @@
     <div class="q-actions">
       <button type="button" id="clear-no" class="btn" data-i18n="cancel">Cancelar</button>
       <button type="button" id="clear-yes" class="btn btn-danger" data-i18n="clearHistory">Limpar histórico</button>
+    </div>
+  </dialog>
+
+  <dialog id="cloud-clear-dialog">
+    <h2 data-i18n="clearCloudTitle">Apagar suas provas da nuvem?</h2>
+    <p class="muted small" data-i18n="clearCloudText">Todas as suas provas salvas na nuvem serão apagadas, e você sai do ranking. Isso não pode ser desfeito.</p>
+    <div class="q-actions">
+      <button type="button" id="cloud-clear-no" class="btn" data-i18n="cancel">Cancelar</button>
+      <button type="button" id="cloud-clear-yes" class="btn btn-danger" data-i18n="clearCloudConfirm">Apagar tudo</button>
     </div>
   </dialog>
 

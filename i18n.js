@@ -128,6 +128,11 @@ window.I18N = {
     errForbidden: (d) => `Esta conta não tem acesso. Entre com um e-mail @${d}.`,
     signOut: "Sair",
     myHistoryHint: "Suas provas salvas na nuvem, em qualquer aparelho.",
+    clearCloudBtn: "Apagar minhas provas da nuvem",
+    clearCloudTitle: "Apagar suas provas da nuvem?",
+    clearCloudText: "Todas as suas provas salvas na nuvem serão apagadas, e você sai do ranking. Isso não pode ser desfeito.",
+    clearCloudConfirm: "Apagar tudo",
+    clearCloudFail: "Não foi possível apagar agora. Tente de novo em instantes.",
   },
 
   en: {
@@ -257,5 +262,10 @@ window.I18N = {
     errForbidden: (d) => `This account has no access. Sign in with an @${d} email.`,
     signOut: "Sign out",
     myHistoryHint: "Your exams saved in the cloud, on any device.",
+    clearCloudBtn: "Delete my exams from the cloud",
+    clearCloudTitle: "Delete your exams from the cloud?",
+    clearCloudText: "All your exams saved in the cloud will be deleted and you will leave the leaderboard. This cannot be undone.",
+    clearCloudConfirm: "Delete all",
+    clearCloudFail: "Could not delete right now. Please try again in a moment.",
   },
 };
