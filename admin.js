@@ -159,7 +159,7 @@
     }
   });
 
-  window.Auth.init().then((user) => {
+  window.Auth.init().then((user) => (user ? window.Auth.refresh() : null)).then((user) => {
     if (!user) { showLogin(); return; }
     $("admin-email").textContent = user.email;
     load();

@@ -324,6 +324,7 @@
     const u = window.Auth.user;
     $("user-box").classList.toggle("hidden", !u || screen === "login" || screen === "quiz");
     $("user-email").textContent = u?.email || "";
+    $("admin-link").classList.toggle("hidden", !u?.isAdmin);
     window.scrollTo(0, 0);
   }
 
@@ -669,6 +670,8 @@
       renderRanking();
       renderCloudHistory();
     });
+    // Atualiza a permissão de gestor (mostra o link do painel sem precisar entrar de novo).
+    window.Auth.refresh().then((u) => $("admin-link").classList.toggle("hidden", !u?.isAdmin));
   }
 
   // Depois do login (ou com sessão restaurada): retoma prova em andamento ou vai ao início.

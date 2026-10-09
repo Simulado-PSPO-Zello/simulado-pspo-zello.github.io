@@ -111,6 +111,20 @@
       try { await client.signOut(); } catch { /* sessão do Neon já encerrada */ }
     },
 
+    // Atualiza nome e permissão de gestor a partir da API (ex.: e-mail incluído em ADMIN_EMAILS depois do login).
+    async refresh() {
+      const s = session.get();
+      if (!s) return user;
+      try {
+        const res = await fetch(`${API_URL}/me`, { headers: { Authorization: `Bearer ${s.token}` } });
+        if (!res.ok) return user;
+        const info = await res.json();
+        session.set({ ...s, email: info.email, name: info.name, isAdmin: info.isAdmin });
+        user = { email: info.email, name: info.name, isAdmin: info.isAdmin };
+      } catch { /* sem conexão: mantém o que já tinha */ }
+      return user;
+    },
+
     // Token para chamar a API: a sessão própria (30 dias).
     async token() {
       return session.get()?.token || null;
