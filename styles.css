@@ -338,3 +338,75 @@ body.on-login .topbar .brand { display: none; }
 .brand { display: flex; align-items: center; gap: 8px; }
 .brand strong { margin-left: -4px; }
 .brand-logo { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; }
+
+/* Relatório individual */
+.report-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 12px 0 8px; }
+.rp-field { display: flex; flex-direction: column; gap: 0; font-size: .8rem; font-weight: 600; color: var(--muted); }
+.rp-field .input { margin: 4px 0 0; min-width: 150px; }
+.rp-person { flex: 1 1 280px; }
+.rp-person .input { width: 100%; }
+.report-form .btn { height: 42px; }
+#report-output { margin-top: 16px; }
+.rp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; border-top: 1px solid var(--border); padding-top: 16px; }
+.rp-name { font-size: 1.25rem; margin: 0 0 2px; }
+.rp-stats { grid-template-columns: repeat(6, 1fr); margin-top: 12px; }
+.stat-sub { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+.rp-section { margin-top: 22px; }
+.rp-section h4 { margin: 0 0 4px; font-size: 1rem; font-family: var(--font-display); }
+.rp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.rp-cols .rp-section { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.rp-good h4 { color: var(--ok); }
+.rp-bad h4 { color: var(--warn); }
+.rp-list { margin: 6px 0 0; padding-left: 18px; }
+.rp-list li { margin: 4px 0; }
+.rp-table td.num, .rp-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-bar { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.rp-bar .bar { flex: 1; }
+.rp-status { display: inline-flex; align-items: center; gap: 4px; font-size: .8rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.rp-status.ok { background: var(--ok-soft); color: var(--ok); }
+.rp-status.warn { background: var(--warn-soft); color: var(--warn); }
+.rp-status.bad { background: var(--bad-soft); color: var(--bad); }
+.rp-foot { margin-top: 20px; text-align: right; }
+
+/* Gráfico de evolução: grade e eixos recessivos, linha de 2px, pontos de 9px com anel da superfície. */
+.rc-wrap { position: relative; margin-top: 8px; }
+.rc-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.rc-grid { stroke: var(--border); stroke-width: 1; }
+.rc-axis { fill: var(--muted); font-size: 11px; font-family: var(--font-sans); }
+.rc-pass { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.rc-line { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.rc-dot { fill: var(--primary); stroke: var(--surface); stroke-width: 2; }
+.rc-hit { fill: transparent; cursor: pointer; }
+.rc-pt.active .rc-dot { r: 6; }
+.rc-value { fill: var(--text); font-size: 12px; font-weight: 700; font-family: var(--font-sans); }
+.rc-tip {
+  position: absolute; transform: translate(-50%, -100%); pointer-events: none; z-index: 2;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; font-size: .78rem; line-height: 1.4; white-space: nowrap; color: var(--text);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, .6);
+}
+
+@media (max-width: 800px) {
+  .rp-stats { grid-template-columns: repeat(2, 1fr); }
+  .rp-cols { grid-template-columns: 1fr; }
+  .report-form .btn { width: 100%; }
+  .rp-field { flex: 1 1 140px; }
+}
+
+/* Impressão / PDF: só o relatório, em fundo claro. */
+@media print {
+  :root {
+    --bg: #ffffff; --surface: #ffffff; --surface-2: #f5f6f8; --border: #d9dde3;
+    --text: #1b1f24; --muted: #5f6b78; --primary: #d9431f; --primary-text: #b8351b;
+    --ok: #1e7a45; --ok-soft: #e3f4ea; --bad: #b42318; --bad-soft: #fbe8e6; --warn: #9a6700; --warn-soft: #fdf3dc;
+  }
+  body { background: #fff; color: var(--text); }
+  .topbar, #summary, .panel:not(#report-panel), .report-form, #report-panel > h2, #report-panel > p, .rp-print, dialog { display: none !important; }
+  main { max-width: none; padding: 0; }
+  #report-panel { border: 0; padding: 0; margin: 0; }
+  .rp-head { border-top: 0; padding-top: 0; }
+  .stat, .rp-cols .rp-section { border-color: var(--border); background: #fff; }
+  .rp-section, .review-item, tr { break-inside: avoid; }
+  .rc-tip { display: none !important; }
+  .rp-stats { grid-template-columns: repeat(3, 1fr); }
+}

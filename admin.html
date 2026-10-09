@@ -34,6 +34,30 @@
     <section id="dashboard" class="hidden">
       <div class="stats" id="summary"></div>
 
+      <div class="panel" id="report-panel">
+        <h2>Relatório individual</h2>
+        <p class="muted small">Escolha a pessoa e o período para ver a evolução, onde melhorou e onde precisa prestar mais atenção.</p>
+        <form id="report-form" class="report-form">
+          <label class="rp-field rp-person">Pessoa
+            <select id="rp-person" class="input"><option value="">Carregando…</option></select>
+          </label>
+          <label class="rp-field">De
+            <input id="rp-from" class="input" type="date" required>
+          </label>
+          <label class="rp-field">Até
+            <input id="rp-to" class="input" type="date" required>
+          </label>
+          <label class="rp-field">Considerar
+            <select id="rp-modes" class="input">
+              <option value="exam">Só Modo Prova</option>
+              <option value="all">Prova e Estudo</option>
+            </select>
+          </label>
+          <button type="submit" id="rp-submit" class="btn btn-primary">Gerar relatório</button>
+        </form>
+        <div id="report-output"></div>
+      </div>
+
       <div class="panel">
         <h2>Desempenho por área (Modo Prova)</h2>
         <div id="topics"></div>
@@ -75,6 +99,7 @@
   <script src="auth.js"></script>
   <script src="i18n.js"></script>
   <script src="questions.js"></script>
+  <script src="report.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>

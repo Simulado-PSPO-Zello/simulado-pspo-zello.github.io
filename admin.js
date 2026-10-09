@@ -12,6 +12,7 @@
 
   let attempts = [];
   let modeFilter = "all";
+  let reportReady = false;
 
   async function api(path, options = {}) {
     const token = await window.Auth.token();
@@ -38,6 +39,7 @@
       renderSummary(summary);
       renderAttempts();
       renderQuestions(questions);
+      if (!reportReady) { reportReady = true; window.Report.init(); }
     } catch (e) {
       if (e.status === 403) showLogin(`A conta ${window.Auth.user?.email ?? ""} não tem acesso ao painel do gestor.`);
       else if (e.status === 401) showLogin("Sua sessão expirou. Entre de novo pelo simulado.");

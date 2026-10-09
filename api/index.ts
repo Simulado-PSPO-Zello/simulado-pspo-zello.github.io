@@ -333,6 +333,57 @@ app.get("/admin/attempts", async (c) => {
   return c.json(rows);
 });
 
+// ---------- relatório individual ----------
+
+// Pessoas que já fizeram alguma tentativa (para o seletor do relatório).
+app.get("/admin/people", async (c) => {
+  const { rows } = await pool.query(
+    `SELECT user_id AS id, max(email) AS email,
+            (array_agg(name ORDER BY created_at DESC))[1] AS name,
+            count(*)::int AS attempts,
+            count(*) FILTER (WHERE mode = 'exam')::int AS exams,
+            min(created_at) AS first, max(created_at) AS last
+       FROM attempts WHERE user_id IS NOT NULL
+      GROUP BY user_id ORDER BY max(created_at) DESC`);
+  return c.json(rows);
+});
+
+const isDate = (v: string | undefined): v is string => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+
+// Tentativas de uma pessoa num período (datas no fuso de São Paulo, fim inclusivo)
+// e as questões que ela mais errou nesse período.
+app.get("/admin/report", async (c) => {
+  const user = c.req.query("user") ?? "";
+  const from = c.req.query("from");
+  const to = c.req.query("to");
+  const modes = c.req.query("modes") === "all" ? ["exam", "study"] : ["exam"];
+  if (!/^[0-9a-f-]{36}$/i.test(user) || !isDate(from) || !isDate(to) || from > to) {
+    return c.json({ error: "invalid params" }, 400);
+  }
+  const period = `user_id = $1 AND mode = ANY($4)
+       AND created_at >= ($2::date)::timestamp AT TIME ZONE 'America/Sao_Paulo'
+       AND created_at <  ($3::date + 1)::timestamp AT TIME ZONE 'America/Sao_Paulo'`;
+  const params = [user, from, to, modes];
+  const [{ rows: [person] }, { rows: attempts }, { rows: questions }] = await Promise.all([
+    pool.query(`SELECT max(email) AS email, (array_agg(name ORDER BY created_at DESC))[1] AS name
+                  FROM attempts WHERE user_id = $1`, [user]),
+    pool.query(
+      `SELECT id, created_at AS date, name, mode, lang, correct, total, pct::float AS pct, passed AS pass,
+              duration_sec AS duration, time_up AS "timeUp", topics
+         FROM attempts WHERE ${period} ORDER BY created_at ASC`, params),
+    pool.query(
+      `SELECT a.question_id AS id, a.topic, count(*)::int AS shown,
+              count(*) FILTER (WHERE NOT a.correct)::int AS wrong
+         FROM attempt_answers a JOIN attempts t ON t.id = a.attempt_id
+        WHERE ${period.replace(/\b(user_id|mode|created_at)\b/g, "t.$1")}
+        GROUP BY a.question_id, a.topic
+       HAVING count(*) FILTER (WHERE NOT a.correct) > 0
+        ORDER BY count(*) FILTER (WHERE NOT a.correct) DESC, count(*) DESC LIMIT 10`, params),
+  ]);
+  if (!person?.email) return c.json({ error: "not found" }, 404);
+  return c.json({ person, from, to, modes, attempts, questions });
+});
+
 // Questões que mais derrubam (mínimo de 3 aparições).
 app.get("/admin/questions", async (c) => {
   const { rows } = await pool.query(

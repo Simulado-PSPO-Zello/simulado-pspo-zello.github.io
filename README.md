@@ -48,6 +48,7 @@ Os resultados do Modo Prova são salvos num Postgres no [Neon](https://neon.com)
 - **Ranking:** melhor nota de cada pessoa (mostra o nome, nunca o e-mail).
 - **Meu histórico:** as provas da pessoa logada, em qualquer aparelho.
 - **Painel do gestor:** `admin.html`, liberado só para os e-mails em `ADMIN_EMAILS`. Mostra todas as tentativas, desempenho por área, questões que mais derrubam e exportação em CSV.
+- **Relatório individual** (no painel do gestor): escolha a pessoa e o período para ver a evolução da nota, o desempenho por área (início × fim), onde melhorou, onde precisa de atenção, recomendações e as questões que mais errou. Pode ser impresso ou salvo em PDF.
 - **Sem conexão:** o resultado fica guardado no aparelho e é enviado depois, só para a conta de quem fez a prova.
 
 | Rota | Acesso | O que faz |
@@ -57,6 +58,7 @@ Os resultados do Modo Prova são salvos num Postgres no [Neon](https://neon.com)
 | `GET /ranking` | logado | Top 20, melhor nota por pessoa |
 | `GET /me/history` | logado | Tentativas da pessoa logada |
 | `GET /admin/summary`, `/admin/attempts`, `/admin/questions` | gestor | Dados do painel |
+| `GET /admin/people`, `/admin/report?user=&from=&to=&modes=` | gestor | Relatório individual por período |
 
 ### Rodar e publicar a API
 
