@@ -34,4 +34,8 @@ CREATE TABLE IF NOT EXISTS attempt_answers (
   PRIMARY KEY (attempt_id, question_id)
 );
 CREATE INDEX IF NOT EXISTS attempt_answers_question_idx ON attempt_answers (question_id);
+-- Detalhe para rever a prova depois: alternativas marcadas (índices originais), marcação e ordem.
+ALTER TABLE attempt_answers ADD COLUMN IF NOT EXISTS selected smallint[];
+ALTER TABLE attempt_answers ADD COLUMN IF NOT EXISTS flagged boolean NOT NULL DEFAULT false;
+ALTER TABLE attempt_answers ADD COLUMN IF NOT EXISTS position smallint;
 `;

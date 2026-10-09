@@ -147,7 +147,7 @@
     try {
       const r = await api("/me/history");
       if (!r.ok) throw new Error(String(r.status));
-      box.innerHTML = r.data.length ? historyTable(r.data) : `<p class="muted">${t("historyEmpty")}</p>`;
+      box.innerHTML = r.data.length ? historyTable(r.data, "cloud") : `<p class="muted">${t("historyEmpty")}</p>`;
       $("cloud-clear-row").classList.toggle("hidden", !r.data.length);
     } catch {
       box.innerHTML = `<p class="muted small">${t("offline")}</p>`;
@@ -259,14 +259,34 @@
   const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 
   // Embaralha as opções (exceto V/F) e remapeia os índices das respostas.
-  function prepareQuestion(q) {
-    if (q.type === "tf") return { ...q, options: q.options.slice(), answer: q.answer.slice() };
-    const order = shuffle(q.options.map((_, i) => i));
+  // "order" guarda a posição original de cada opção mostrada, para rever a prova depois.
+  function prepareQuestion(q, order = null) {
+    order ??= q.type === "tf" ? q.options.map((_, i) => i) : shuffle(q.options.map((_, i) => i));
     return {
       ...q,
+      order,
       options: order.map((i) => q.options[i]),
       answer: q.answer.map((a) => order.indexOf(a)).sort((x, y) => x - y),
     };
+  }
+
+  // Reconstrói os resultados de uma tentativa salva (no aparelho ou na nuvem) para a tela de resultado.
+  // Cada item: { id, order?, sel? (índices mostrados), selected? (índices originais), correct?, answered?, time, flag }
+  function rebuildResults(lang, items) {
+    const bank = BANKS[lang] || BANKS.pt;
+    return items.map((d) => {
+      const base = bank[d.id];
+      if (!base) return null;
+      const q = prepareQuestion(base, Array.isArray(d.order) ? d.order : base.options.map((_, i) => i));
+      const selected = Array.isArray(d.sel) ? d.sel
+        : Array.isArray(d.selected) ? d.selected.map((o) => q.order.indexOf(o)).filter((i) => i >= 0) : [];
+      const known = Array.isArray(d.sel) || Array.isArray(d.selected);
+      return {
+        q, selected, flagged: !!(d.flag ?? d.flagged), time: Number(d.time) || 0,
+        correct: known ? sameSet(selected, q.answer) : !!d.correct,
+        answered: d.answered ?? selected.length > 0,
+      };
+    }).filter(Boolean);
   }
 
   // Sorteia respeitando a cota de cada área, priorizando as questões que menos caíram
@@ -309,7 +329,7 @@
 
   // ---------- início ----------
   function start(mode, name = "") {
-    const qs = pickQuestions().map(prepareQuestion);
+    const qs = pickQuestions().map((q) => prepareQuestion(q));
     const now = Date.now();
     state = {
       mode,
@@ -483,24 +503,37 @@
       duration: (finishedAt - state.startedAt) / 1000,
       timeUp,
       topics,
+      // Detalhe para rever a tentativa depois (botão "Ver" no histórico).
+      detail: results.map((r) => ({
+        id: r.q.id, order: r.q.order,
+        // Sem "order" (prova iniciada antes desta versão) as posições não batem: guarda só acerto/resposta.
+        sel: r.q.order ? r.selected : undefined,
+        correct: r.correct, answered: r.selected.length > 0,
+        time: Math.round(r.time), flag: r.flagged,
+      })),
     };
     const history = store.get(KEY_HISTORY, []);
     history.unshift(summary);
     store.set(KEY_HISTORY, history.slice(0, 50));
-    const payload = state.mode === "exam" && summary.name ? {
-      name: summary.name, mode: summary.mode, lang: summary.lang,
+    // Prova e Estudo vão para a nuvem (o ranking considera só o Modo Prova).
+    const payload = {
+      name: summary.name || suggestedName() || "-", mode: summary.mode, lang: summary.lang,
       duration: Math.round(summary.duration), timeUp,
       answers: results
         .filter((r) => Number.isInteger(r.q.id))
-        .map((r) => ({ id: r.q.id, topic: r.q.topic, answered: r.selected.length > 0, correct: r.correct, time: Math.round(r.time) })),
-    } : null;
+        .map((r) => ({
+          id: r.q.id, topic: r.q.topic, answered: r.selected.length > 0, correct: r.correct, time: Math.round(r.time),
+          // Alternativas marcadas nos índices originais do banco (independe do embaralhamento).
+          selected: Array.isArray(r.q.order) ? r.selected.map((i) => r.q.order[i]) : undefined,
+          flagged: r.flagged,
+        })),
+    };
     store.remove(KEY_STATE);
     state = null;
 
     renderResult(summary, results);
-    // Só o Modo Prova (que tem nome) vai para a nuvem.
-    $("cloud-status").classList.toggle("hidden", !payload);
-    if (payload) submitToCloud(payload);
+    $("cloud-status").classList.remove("hidden");
+    submitToCloud(payload);
   }
 
   // ---------- resultado ----------
@@ -515,7 +548,8 @@
       t("resultDetail", s.correct, s.total, EXAM.passPct, Math.ceil(s.total * EXAM.passPct / 100)) +
       (s.timeUp ? t("timeUp") : "") + (s.mode === "study" ? t("studyMode") : "");
 
-    const answered = results.filter((r) => r.selected.length).length;
+    const isAnswered = (r) => r.answered ?? r.selected.length > 0;
+    const answered = results.filter(isAnswered).length;
     const avg = answered ? results.reduce((sum, r) => sum + r.time, 0) / s.total : 0;
     const slowest = results.slice().sort((a, b) => b.time - a.time)[0];
     $("result-stats").innerHTML = [
@@ -550,7 +584,7 @@
           <div class="q-meta"><span>${t("question", i + 1)}</span>
             <span class="tag">${t("types")[r.q.type]}</span>
             <span class="tag tag-soft">${esc(topicLabel(r.q.topic))}</span>
-            <span class="${r.correct ? "pass-txt" : "fail-txt"}">${t(r.correct ? "reviewHit" : r.selected.length ? "reviewMiss" : "reviewBlank")}</span>
+            <span class="${r.correct ? "pass-txt" : "fail-txt"}">${t(r.correct ? "reviewHit" : isAnswered(r) ? "reviewMiss" : "reviewBlank")}</span>
             <span class="muted small">${Math.round(r.time)} s</span></div>
           <p class="q-text">${questionHtml(r.q)}</p>
           <div class="options">${r.q.options.map((o, idx) => {
@@ -572,23 +606,45 @@
     renderReview("all");
   }
 
+  // ---------- rever tentativa ----------
+  async function openAttempt(source, key) {
+    if (source === "local") {
+      const s = store.get(KEY_HISTORY, [])[Number(key)];
+      if (!s?.detail) return;
+      showSaved(s, rebuildResults(s.lang || "pt", s.detail));
+      return;
+    }
+    const r = await api(`/me/attempts/${encodeURIComponent(key)}`).catch(() => ({ ok: false }));
+    if (!r.ok) { alertBox(t("viewFail")); return; }
+    showSaved(r.data, rebuildResults(r.data.lang || "pt", r.data.answers || []));
+  }
+
+  function showSaved(summary, results) {
+    renderResult(summary, results);
+    $("cloud-status").classList.add("hidden");
+  }
+
   // ---------- histórico ----------
   // Tabela usada tanto para o histórico local quanto para o da nuvem.
-  function historyTable(h) {
+  // source: "local" (índice no histórico do aparelho) ou "cloud" (id da tentativa na nuvem).
+  function historyTable(h, source = "local") {
     const exams = h.filter((x) => x.mode === "exam");
     const best = exams.length ? Math.max(...exams.map((x) => x.pct)) : "-";
     const avg = exams.length ? (exams.reduce((sum, x) => sum + x.pct, 0) / exams.length).toFixed(1) : "-";
     return `
       <p class="muted small">${t("historySummary", exams.length, best, avg, exams.filter((x) => x.pass).length)}</p>
-      <div class="table-wrap"><table><thead><tr><th>${t("thDate")}</th><th>${t("thName")}</th><th>${t("thMode")}</th><th>${t("thScore")}</th><th>${t("thCorrect")}</th><th>${t("thTime")}</th><th>${t("thResult")}</th></tr></thead><tbody>
-      ${h.map((x) => `<tr>
+      <div class="table-wrap"><table><thead><tr><th>${t("thDate")}</th><th>${t("thName")}</th><th>${t("thMode")}</th><th>${t("thScore")}</th><th>${t("thCorrect")}</th><th>${t("thTime")}</th><th>${t("thResult")}</th><th></th></tr></thead><tbody>
+      ${h.map((x, i) => `<tr>
         <td>${new Date(x.date).toLocaleString(t("locale"), { dateStyle: "short", timeStyle: "short" })}</td>
         <td>${esc(x.name || "-")}</td>
         <td>${t(x.mode === "exam" ? "modeExam" : "modeStudy")} · ${(x.lang || "pt").toUpperCase()}</td>
         <td>${x.pct}%</td>
         <td>${x.correct}/${x.total}</td>
         <td>${fmtTime(x.duration)}</td>
-        <td class="${x.pass ? "pass-txt" : "fail-txt"}">${t(x.pass ? "pass" : "fail")}</td></tr>`).join("")}
+        <td class="${x.pass ? "pass-txt" : "fail-txt"}">${t(x.pass ? "pass" : "fail")}</td>
+        <td>${source === "cloud" || x.detail
+          ? `<button type="button" class="btn btn-small" data-view="${source}" data-key="${source === "cloud" ? x.id : i}">${t("view")}</button>`
+          : `<span class="muted small" title="${esc(t("viewUnavailable"))}">—</span>`}</td></tr>`).join("")}
       </tbody></table></div>`;
   }
 
@@ -682,6 +738,11 @@
   $("btn-home").addEventListener("click", goHome);
   $("clear-no").addEventListener("click", () => $("clear-dialog").close());
   $("btn-clear-cloud").addEventListener("click", () => $("cloud-clear-dialog").showModal());
+  // "Ver" no histórico (nuvem e aparelho).
+  $("history").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-view]");
+    if (b) openAttempt(b.dataset.view, b.dataset.key);
+  });
   $("cloud-clear-no").addEventListener("click", () => $("cloud-clear-dialog").close());
   $("cloud-clear-yes").addEventListener("click", async () => {
     const btn = $("cloud-clear-yes");

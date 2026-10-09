@@ -151,7 +151,10 @@ app.get("/me", (c) => {
 
 // ---------- tentativas ----------
 
-type AnswerIn = { id: number; topic: string; answered: boolean; correct: boolean; time: number };
+type AnswerIn = {
+  id: number; topic: string; answered: boolean; correct: boolean; time: number;
+  selected: number[] | null; flagged: boolean;
+};
 type AttemptIn = {
   name: string; mode: "exam" | "study"; lang: "pt" | "en"; correct: number; total: number;
   duration: number; timeUp: boolean; answers: AnswerIn[];
@@ -173,10 +176,17 @@ function parseAttempt(body: unknown): AttemptIn | string {
     seen.add(a.id as number);
     if (typeof a.topic !== "string" || !TOPICS.has(a.topic)) return "invalid topic";
     const time = Number(a.time);
+    let selected: number[] | null = null;
+    if (a.selected !== undefined) {
+      if (!Array.isArray(a.selected) || a.selected.length > 10 ||
+        !a.selected.every((x) => Number.isInteger(x) && x >= 0 && x < 20)) return "invalid selected";
+      selected = a.selected as number[];
+    }
     answers.push({
       id: a.id as number, topic: a.topic,
       answered: a.answered === true, correct: a.correct === true,
       time: Number.isFinite(time) ? Math.min(Math.max(time, 0), 7200) : 0,
+      selected, flagged: a.flagged === true,
     });
   }
   const duration = Number(b.duration);
@@ -221,10 +231,15 @@ app.post("/attempts", async (c) => {
       [user.id, user.email, a.name, nameKey(a.name), a.mode, a.lang, a.correct, a.total, pct, pct >= 85,
         a.duration, a.timeUp, JSON.stringify(topics)]);
     await client.query(
-      `INSERT INTO attempt_answers (attempt_id, question_id, topic, answered, correct, time_sec)
-       SELECT $1, * FROM unnest($2::int[], $3::text[], $4::bool[], $5::bool[], $6::real[])`,
+      `INSERT INTO attempt_answers (attempt_id, question_id, topic, answered, correct, time_sec, selected, flagged, position)
+       SELECT $1, q, tp, an, co, ti, sel::smallint[], fl, (ord - 1)::smallint
+         FROM unnest($2::int[], $3::text[], $4::bool[], $5::bool[], $6::real[], $7::text[], $8::bool[])
+              WITH ORDINALITY AS u(q, tp, an, co, ti, sel, fl, ord)`,
       [row.id, a.answers.map((x) => x.id), a.answers.map((x) => x.topic), a.answers.map((x) => x.answered),
-        a.answers.map((x) => x.correct), a.answers.map((x) => x.time)]);
+        a.answers.map((x) => x.correct), a.answers.map((x) => x.time),
+        // Cada lista vira um literal de array do Postgres ("{1,3}"), porque unnest achataria arrays 2D.
+        a.answers.map((x) => (x.selected ? `{${x.selected.join(",")}}` : null)),
+        a.answers.map((x) => x.flagged)]);
     await client.query("COMMIT");
     return c.json({ id: row.id, createdAt: row.created_at, pct, passed: pct >= 85 }, 201);
   } catch (e) {
@@ -254,6 +269,22 @@ app.get("/me/history", async (c) => {
             duration_sec AS duration, time_up AS "timeUp", topics
        FROM attempts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`, [c.get("user").id]);
   return c.json(rows);
+});
+
+// Uma tentativa da pessoa logada, com as respostas, para rever as métricas e a revisão.
+app.get("/me/attempts/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!/^d{1,18}$/.test(id)) return c.json({ error: "invalid id" }, 400);
+  const { rows: [a] } = await pool.query(
+    `SELECT id, created_at AS date, name, mode, lang, correct, total, pct::float AS pct, passed AS pass,
+            duration_sec AS duration, time_up AS "timeUp", topics
+       FROM attempts WHERE id = $1 AND user_id = $2`, [id, c.get("user").id]);
+  if (!a) return c.json({ error: "not found" }, 404);
+  const { rows: answers } = await pool.query(
+    `SELECT question_id AS id, topic, answered, correct, time_sec AS time, selected, flagged
+       FROM attempt_answers WHERE attempt_id = $1
+      ORDER BY position NULLS LAST, question_id`, [id]);
+  return c.json({ ...a, answers });
 });
 
 // Apaga todas as provas da pessoa logada (histórico na nuvem e ranking).
