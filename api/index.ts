@@ -274,7 +274,7 @@ app.get("/me/history", async (c) => {
 // Uma tentativa da pessoa logada, com as respostas, para rever as métricas e a revisão.
 app.get("/me/attempts/:id", async (c) => {
   const id = c.req.param("id");
-  if (!/^d{1,18}$/.test(id)) return c.json({ error: "invalid id" }, 400);
+  if (!/^\d{1,18}$/.test(id)) return c.json({ error: "invalid id" }, 400);
   const { rows: [a] } = await pool.query(
     `SELECT id, created_at AS date, name, mode, lang, correct, total, pct::float AS pct, passed AS pass,
             duration_sec AS duration, time_up AS "timeUp", topics
@@ -320,7 +320,7 @@ app.get("/admin/summary", async (c) => {
 // Apaga uma tentativa específica (ex.: dados de teste).
 app.delete("/admin/attempts/:id", async (c) => {
   const id = c.req.param("id");
-  if (!/^d{1,18}$/.test(id)) return c.json({ error: "invalid id" }, 400);
+  if (!/^\d{1,18}$/.test(id)) return c.json({ error: "invalid id" }, 400);
   const { rowCount } = await pool.query(`DELETE FROM attempts WHERE id = $1`, [id]);
   return rowCount ? c.json({ deleted: 1 }) : c.json({ error: "not found" }, 404);
 });
