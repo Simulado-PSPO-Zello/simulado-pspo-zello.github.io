@@ -256,6 +256,20 @@
     return `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
   };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // Horários de uma tentativa: o término é a data salva; o início é término − duração.
+  const hhmm = (d) => d.toLocaleTimeString(t("locale"), { hour: "2-digit", minute: "2-digit" });
+  const dayOf = (d) => d.toLocaleDateString(t("locale"));
+  function whenParts(endIso, durationSec) {
+    const end = new Date(endIso);
+    const start = new Date(end.getTime() - (Number(durationSec) || 0) * 1000);
+    // Se começou em outro dia (ex.: perto da meia-noite), mostra a data no início também.
+    const startTxt = dayOf(start) === dayOf(end) ? hhmm(start) : `${dayOf(start)} ${hhmm(start)}`;
+    return { day: dayOf(end), start: startTxt, end: hhmm(end) };
+  }
+  const whenRange = (endIso, durationSec) => {
+    const w = whenParts(endIso, durationSec);
+    return `${w.day} · ${w.start} → ${w.end}`;
+  };
   const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 
   // Embaralha as opções (exceto V/F) e remapeia os índices das respostas.
@@ -354,6 +368,8 @@
     setLang(state.lang || "pt");
     show("quiz");
     $("timer").classList.toggle("hidden", state.mode !== "exam");
+    $("ends-at").classList.toggle("hidden", state.mode !== "exam");
+    if (state.mode === "exam") $("ends-at").textContent = t("endsAt", hhmm(new Date(state.deadline)));
     $("candidate").textContent = state.name || "";
     clearInterval(tickHandle);
     tickHandle = setInterval(tick, 1000);
@@ -520,6 +536,7 @@
     const payload = {
       name: summary.name || suggestedName() || "-", mode: summary.mode, lang: summary.lang,
       duration: Math.round(summary.duration), timeUp,
+      finishedAt: summary.date,
       answers: results
         .filter((r) => Number.isInteger(r.q.id))
         .map((r) => ({
@@ -548,6 +565,8 @@
       (s.name ? `${s.name} · ` : "") +
       t("resultDetail", s.correct, s.total, EXAM.passPct, Math.ceil(s.total * EXAM.passPct / 100)) +
       (s.timeUp ? t("timeUp") : "") + (s.mode === "study" ? t("studyMode") : "");
+    const w = whenParts(s.date, s.duration);
+    $("result-when").textContent = t("resultWhen", w.day, w.start, w.end);
 
     const isAnswered = (r) => r.answered ?? r.selected.length > 0;
     const answered = results.filter(isAnswered).length;
@@ -636,7 +655,7 @@
       <p class="muted small">${t("historySummary", exams.length, best, avg, exams.filter((x) => x.pass).length)}</p>
       <div class="table-wrap"><table><thead><tr><th>${t("thDate")}</th><th>${t("thName")}</th><th>${t("thMode")}</th><th>${t("thScore")}</th><th>${t("thCorrect")}</th><th>${t("thTime")}</th><th>${t("thResult")}</th><th></th></tr></thead><tbody>
       ${h.map((x, i) => `<tr>
-        <td>${new Date(x.date).toLocaleString(t("locale"), { dateStyle: "short", timeStyle: "short" })}</td>
+        <td class="nowrap">${whenRange(x.date, x.duration)}</td>
         <td>${esc(x.name || "-")}</td>
         <td>${t(x.mode === "exam" ? "modeExam" : "modeStudy")} · ${(x.lang || "pt").toUpperCase()}</td>
         <td>${x.pct}%</td>

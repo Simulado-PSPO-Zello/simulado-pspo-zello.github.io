@@ -17,6 +17,13 @@
     const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
     return z.toISOString().slice(0, 10);
   };
+  // Data · início → término (início = término − duração).
+  const fmtRange = (endIso, durationSec) => {
+    const end = new Date(endIso);
+    const start = new Date(end.getTime() - (Number(durationSec) || 0) * 1000);
+    const hm = (d) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return `${fmtDay(end)} · ${fmtDay(start) === fmtDay(end) ? "" : `${fmtDay(start)} `}${hm(start)} → ${hm(end)}`;
+  };
   const pctOf = (c, t) => (t ? Math.round((c / t) * 1000) / 10 : 0);
   const sign = (n) => (n > 0 ? `+${n}` : `${n}`);
 
@@ -167,7 +174,7 @@
       const showTip = () => {
         const dot = g.querySelector(".rc-dot").getBoundingClientRect();
         const box = wrap.getBoundingClientRect();
-        tip.innerHTML = `<strong>${a.pct}%</strong> · ${a.correct}/${a.total}<br>${fmtDateTime(a.date)} · ${a.mode === "exam" ? "Prova" : "Estudo"} ${a.lang.toUpperCase()}<br>${fmtTime(a.duration)}${a.timeUp ? " · tempo esgotado" : ""}`;
+        tip.innerHTML = `<strong>${a.pct}%</strong> · ${a.correct}/${a.total}<br>${fmtRange(a.date, a.duration)} · ${a.mode === "exam" ? "Prova" : "Estudo"} ${a.lang.toUpperCase()}<br>${fmtTime(a.duration)}${a.timeUp ? " · tempo esgotado" : ""}`;
         tip.classList.remove("hidden");
         const left = Math.min(Math.max(dot.left - box.left + dot.width / 2, 70), box.width - 70);
         tip.style.left = `${left}px`;
@@ -253,7 +260,7 @@
     }).join("") : `<p class="muted small">Nenhuma questão errada no período.</p>`;
 
     const attemptsRows = list.slice().reverse().map((a) => `<tr>
-        <td>${fmtDateTime(a.date)}</td><td>${a.mode === "exam" ? "Prova" : "Estudo"} · ${a.lang.toUpperCase()}</td>
+        <td class="nowrap">${fmtRange(a.date, a.duration)}</td><td>${a.mode === "exam" ? "Prova" : "Estudo"} · ${a.lang.toUpperCase()}</td>
         <td class="num">${a.pct}%</td><td class="num">${a.correct}/${a.total}</td><td class="num">${fmtTime(a.duration)}${a.timeUp ? " ⏱" : ""}</td>
         <td class="${a.pass ? "pass-txt" : "fail-txt"}">${a.pass ? "Aprovado" : "Reprovado"}</td></tr>`).join("");
 
@@ -293,7 +300,7 @@
       <section class="rp-section">
         <h4>Tentativas no período</h4>
         <div class="table-wrap"><table class="rp-table">
-          <thead><tr><th>Data</th><th>Modo</th><th class="num">Nota</th><th class="num">Acertos</th><th class="num">Tempo</th><th>Resultado</th></tr></thead>
+          <thead><tr><th>Data e horário</th><th>Modo</th><th class="num">Nota</th><th class="num">Acertos</th><th class="num">Tempo</th><th>Resultado</th></tr></thead>
           <tbody>${attemptsRows}</tbody>
         </table></div>
       </section>

@@ -158,6 +158,7 @@ type AnswerIn = {
 type AttemptIn = {
   name: string; mode: "exam" | "study"; lang: "pt" | "en"; correct: number; total: number;
   duration: number; timeUp: boolean; answers: AnswerIn[];
+  finishedAt: Date | null; // horário real do término (pode chegar depois, se a pessoa estava sem internet)
 };
 
 function parseAttempt(body: unknown): AttemptIn | string {
@@ -193,7 +194,11 @@ function parseAttempt(body: unknown): AttemptIn | string {
   if (!Number.isFinite(duration) || duration < 0 || duration > 86400) return "invalid duration";
   // A nota é recalculada a partir das respostas, não confiamos no total enviado.
   const correct = answers.filter((a) => a.correct).length;
-  return { name, mode: b.mode, lang: b.lang, correct, total: answers.length, duration: Math.round(duration), timeUp: b.timeUp === true, answers };
+  // Aceita o horário de término do aparelho só se for plausível: nos últimos 7 dias e não no futuro.
+  const fin = Number(b.finishedAt);
+  const now = Date.now();
+  const finishedAt = Number.isFinite(fin) && fin <= now + 60_000 && fin >= now - 7 * 86_400_000 ? new Date(fin) : null;
+  return { name, mode: b.mode, lang: b.lang, correct, total: answers.length, duration: Math.round(duration), timeUp: b.timeUp === true, answers, finishedAt };
 }
 
 app.post("/attempts", async (c) => {
@@ -226,10 +231,10 @@ app.post("/attempts", async (c) => {
   try {
     await client.query("BEGIN");
     const { rows: [row] } = await client.query(
-      `INSERT INTO attempts (user_id, email, name, name_key, mode, lang, correct, total, pct, passed, duration_sec, time_up, topics)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id, created_at`,
+      `INSERT INTO attempts (user_id, email, name, name_key, mode, lang, correct, total, pct, passed, duration_sec, time_up, topics, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13, coalesce($14::timestamptz, now())) RETURNING id, created_at`,
       [user.id, user.email, a.name, nameKey(a.name), a.mode, a.lang, a.correct, a.total, pct, pct >= 85,
-        a.duration, a.timeUp, JSON.stringify(topics)]);
+        a.duration, a.timeUp, JSON.stringify(topics), a.finishedAt]);
     await client.query(
       `INSERT INTO attempt_answers (attempt_id, question_id, topic, answered, correct, time_sec, selected, flagged, position)
        SELECT $1, q, tp, an, co, ti, sel::smallint[], fl, (ord - 1)::smallint

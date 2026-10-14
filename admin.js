@@ -8,6 +8,14 @@
     sec = Math.max(0, Math.round(sec));
     return `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
   };
+  // Data · início → término (início = término − duração).
+  const fmtRange = (endIso, durationSec) => {
+    const end = new Date(endIso);
+    const start = new Date(end.getTime() - (Number(durationSec) || 0) * 1000);
+    const hm = (d) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const day = (d) => d.toLocaleDateString("pt-BR");
+    return `${day(end)} · ${day(start) === day(end) ? "" : `${day(start)} `}${hm(start)} → ${hm(end)}`;
+  };
   const fmtDate = (d) => new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
   let attempts = [];
@@ -77,12 +85,12 @@
   function renderAttempts() {
     const list = filtered();
     $("attempts").innerHTML = list.length ? `<div class="table-wrap"><table>
-      <thead><tr><th>Data</th><th>Nome</th><th>E-mail</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th><th>Pior área</th><th></th></tr></thead><tbody>
+      <thead><tr><th>Data e horário</th><th>Nome</th><th>E-mail</th><th>Modo</th><th>Nota</th><th>Acertos</th><th>Tempo</th><th>Resultado</th><th>Pior área</th><th></th></tr></thead><tbody>
       ${list.map((a) => {
         const worst = Object.entries(a.topics || {})
           .map(([k, v]) => [k, v.correct / v.total]).sort((x, y) => x[1] - y[1])[0];
         return `<tr>
-          <td>${fmtDate(a.date)}</td><td>${esc(a.name)}</td><td class="small muted">${esc(a.email || "-")}</td>
+          <td class="nowrap">${fmtRange(a.date, a.duration)}</td><td>${esc(a.name)}</td><td class="small muted">${esc(a.email || "-")}</td>
           <td>${a.mode === "exam" ? "Prova" : "Estudo"} · ${a.lang.toUpperCase()}</td>
           <td>${a.pct}%</td><td>${a.correct}/${a.total}</td>
           <td>${fmtTime(a.duration)}${a.timeUp ? " ⏱" : ""}</td>
@@ -110,9 +118,9 @@
 
   function exportCsv() {
     const cell = (v) => `"${String(v).replace(/"/g, '""')}"`;
-    const head = ["data", "nome", "email", "modo", "idioma", "nota", "acertos", "total", "tempo_seg", "aprovado", ...Object.keys(TOPICS).map((k) => `area_${k}_pct`)];
+    const head = ["inicio", "termino", "nome", "email", "modo", "idioma", "nota", "acertos", "total", "tempo_seg", "aprovado", ...Object.keys(TOPICS).map((k) => `area_${k}_pct`)];
     const lines = filtered().map((a) => [
-      new Date(a.date).toISOString(), a.name, a.email || "", a.mode, a.lang, a.pct, a.correct, a.total, a.duration, a.pass ? "sim" : "nao",
+      new Date(new Date(a.date).getTime() - a.duration * 1000).toISOString(), new Date(a.date).toISOString(), a.name, a.email || "", a.mode, a.lang, a.pct, a.correct, a.total, a.duration, a.pass ? "sim" : "nao",
       ...Object.keys(TOPICS).map((k) => (a.topics?.[k] ? Math.round((a.topics[k].correct / a.topics[k].total) * 100) : "")),
     ].map(cell).join(";"));
     const blob = new Blob(["﻿" + [head.map(cell).join(";"), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
@@ -140,7 +148,7 @@
     const a = attempts.find((x) => String(x.id) === b.dataset.delete);
     if (!a) return;
     pendingDelete = a;
-    $("delete-text").textContent = `${a.name} (${a.email || "sem e-mail"}) · ${fmtDate(a.date)} · ${a.pct}%. Isso não pode ser desfeito.`;
+    $("delete-text").textContent = `${a.name} (${a.email || "sem e-mail"}) · ${fmtRange(a.date, a.duration)} · ${a.pct}%. Isso não pode ser desfeito.`;
     $("delete-dialog").showModal();
   });
   $("delete-no").addEventListener("click", () => { pendingDelete = null; $("delete-dialog").close(); });

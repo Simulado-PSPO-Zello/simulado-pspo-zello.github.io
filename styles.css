@@ -410,3 +410,9 @@ body.on-login .topbar .brand { display: none; }
   .rc-tip { display: none !important; }
   .rp-stats { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* Horários */
+.ends-at { font-size: .8rem; color: var(--muted); white-space: nowrap; }
+#result-when { display: block; margin-top: 2px; }
+td.nowrap { white-space: nowrap; }
+@media (max-width: 800px) { .ends-at { display: none; } }
