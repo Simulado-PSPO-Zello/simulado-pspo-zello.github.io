@@ -579,6 +579,8 @@
       [t("statSlowest"), slowest ? `${Math.round(slowest.time)} s` : "-"],
     ].map(([l, v]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join("");
 
+    renderResultAreas(s.topics);
+
     $("result-topics").innerHTML = Object.entries(s.topics)
       .sort((a, b) => a[1].correct / a[1].total - b[1].correct / b[1].total)
       .map(([id, tp]) => {
@@ -642,6 +644,29 @@
   function showSaved(summary, results) {
     renderResult(summary, results);
     $("cloud-status").classList.add("hidden");
+  }
+
+  // Acertos desta tentativa por competência (as 3 linhas somam as questões da prova).
+  function renderResultAreas(topics) {
+    const bp = window.EXAM_BLUEPRINT;
+    const L = window.I18N[lang];
+    let tc = 0, tt = 0;
+    const line = (label, sub, c, n, cls = "") => {
+      const p = n ? Math.round((c / n) * 100) : 0;
+      const color = p >= EXAM.passPct ? "var(--ok)" : p >= 70 ? "var(--warn)" : "var(--bad)";
+      return `<tr class="${cls}"><td>${label}${sub ? `<div class="pa-sub">${sub}</div>` : ""}</td>
+        <td class="num">${n}</td><td class="num"><strong>${c}</strong></td>
+        <td class="num"><div class="pa-acc"><div class="bar"><div class="bar-fill" style="width:${p}%;background:${color}"></div><div class="bar-mark"></div></div><strong>${p}%</strong></div></td></tr>`;
+    };
+    const rows = bp.areas.map((a) => {
+      const c = a.topics.reduce((sum, k) => sum + (topics[k]?.correct || 0), 0);
+      const n = a.topics.reduce((sum, k) => sum + (topics[k]?.total || 0), 0);
+      tc += c; tt += n;
+      return n ? line(`<strong>${esc(L.areas?.[a.key] ?? a.label)}</strong>`, a.topics.map((k) => esc(topicLabel(k))).join(" + "), c, n) : "";
+    }).join("");
+    $("result-areas").innerHTML = `<div class="table-wrap"><table class="rp-table pa-table">
+      <thead><tr><th>${t("thArea")}</th><th class="num">${t("thQuestions")}</th><th class="num">${t("thHits")}</th><th class="num">${t("thAcc")}</th></tr></thead>
+      <tbody>${rows}${line(`<strong>${t("examTotal")}</strong>`, "", tc, tt, "pa-total")}</tbody></table></div>`;
   }
 
   // ---------- histórico ----------

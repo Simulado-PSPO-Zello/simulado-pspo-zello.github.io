@@ -441,3 +441,6 @@ td.nowrap { white-space: nowrap; }
 .pa-acc strong { min-width: 38px; text-align: right; }
 .pa-raw { font-size: .72rem; color: var(--muted); margin-top: 2px; }
 @media (max-width: 800px) { .pa-acc .bar { width: 60px; } }
+
+.pa-title { font-size: .95rem; margin: 18px 0 6px; }
+#result-areas { margin-top: 4px; }
