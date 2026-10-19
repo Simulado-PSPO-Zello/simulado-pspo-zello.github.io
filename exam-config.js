@@ -1,34 +1,39 @@
-// Planta da prova: quantas questões de cada tema entram nas 80 e a qual área oficial
-// da Scrum.org cada tema pertence.
+// Planta da prova: quantas questões de cada tema entram nas 80 e a qual área
+// (competência da Scrum.org) cada tema pertence.
 //
-// A Scrum.org não publica o peso de cada área no PSPO I. A página oficial diz que
-// "many questions focus on the Product Owner accountabilities based on the Scrum Guide
-// and also the application of Scrum" e lista três focus areas. A distribuição abaixo segue
-// isso e a estimativa mais citada pelos guias de preparação: ~30% framework Scrum e ~70%
-// gestão de produto, com destaque para o papel do Product Owner e o Product Backlog.
+// A Scrum.org não publica o peso de cada área no PSPO I. A distribuição abaixo segue a
+// referência adotada pelo projeto, com as três grandes competências do Product Owner:
+//   1. Entender e aplicar o Scrum ........ 30–40%  → 28 de 80 (35%)
+//   2. Gerenciar produtos com agilidade .. 35–40%  → 32 de 80 (40%)
+//   3. Desenvolver pessoas e times ....... 20–25%  → 20 de 80 (25%)
+// O banco de questões não muda; só a quantidade sorteada de cada tema.
 window.EXAM_BLUEPRINT = {
   quota: {
-    fundamentals: 12, // empirismo, Scrum Team, artefatos, Done, times autogerenciáveis
-    events: 12,       // o Product Owner nos eventos
-    po: 16,           // accountabilities do PO, stakeholders e clientes
-    backlog: 16,      // Product Backlog Management
-    value: 12,        // visão, valor, estratégia de negócio, EBM
-    release: 12,      // previsão, release e entrega de valor (Incremento, Done)
+    fundamentals: 11, // empirismo, valores, papéis, artefatos, Done
+    events: 17,       // eventos do Scrum e o PO em cada um
+    backlog: 14,      // ordenação, refinamento, transparência, criação de valor
+    value: 9,         // visão do produto, Meta do Produto, valor, EBM
+    release: 9,       // previsão, planejamento de release, Incremento e Done
+    po: 20,           // times autogerenciáveis, relação com Developers e stakeholders
   },
-  // Áreas oficiais (focus areas) da Scrum.org, agrupando os temas do simulado.
-  // "Developing People and Teams" (times autogerenciáveis) está dentro de Fundamentos.
   areas: [
     {
       key: "framework",
-      label: "Entender e aplicar o Scrum + Desenvolver pessoas e times",
-      official: "Understanding and Applying the Scrum Framework · Developing People and Teams",
+      label: "Entender e aplicar o Scrum",
+      official: "Understanding and Applying the Scrum Framework · meta 30–40%",
       topics: ["fundamentals", "events"],
     },
     {
       key: "product",
       label: "Gerenciar produtos com agilidade",
-      official: "Managing Products with Agility",
-      topics: ["po", "backlog", "value", "release"],
+      official: "Managing Products with Agility · meta 35–40%",
+      topics: ["backlog", "value", "release"],
+    },
+    {
+      key: "people",
+      label: "Desenvolver pessoas e times",
+      official: "Developing People and Teams · meta 20–25%",
+      topics: ["po"],
     },
   ],
 };
