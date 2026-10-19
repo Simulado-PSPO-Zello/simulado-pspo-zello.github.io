@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
-  <link rel="stylesheet" href="styles.css?v=202610191857">
+  <link rel="stylesheet" href="styles.css?v=202610191902">
 </head>
 <body>
   <header class="topbar">
@@ -59,7 +59,12 @@
       </div>
 
       <div class="panel">
-        <h2>Desempenho por área (Modo Prova)</h2>
+        <div class="review-head">
+          <h2>Desempenho por área (Modo Prova)</h2>
+          <label class="rp-field perf-person">Ver
+            <select id="perf-person" class="input"><option value="">Todas as pessoas</option></select>
+          </label>
+        </div>
         <p class="muted small">Desempenho de todas as provas no Modo Prova, organizado como uma prova de 80 questões, pelas três competências do Product Owner.</p>
         <div id="topics"></div>
       </div>
@@ -95,13 +100,13 @@
     </div>
   </dialog>
 
-  <script src="config.js?v=202610191857"></script>
-  <script src="vendor/neon-auth.js?v=202610191857"></script>
-  <script src="auth.js?v=202610191857"></script>
-  <script src="exam-config.js?v=202610191857"></script>
-  <script src="i18n.js?v=202610191857"></script>
-  <script src="questions.js?v=202610191857"></script>
-  <script src="report.js?v=202610191857"></script>
-  <script src="admin.js?v=202610191857"></script>
+  <script src="config.js?v=202610191902"></script>
+  <script src="vendor/neon-auth.js?v=202610191902"></script>
+  <script src="auth.js?v=202610191902"></script>
+  <script src="exam-config.js?v=202610191902"></script>
+  <script src="i18n.js?v=202610191902"></script>
+  <script src="questions.js?v=202610191902"></script>
+  <script src="report.js?v=202610191902"></script>
+  <script src="admin.js?v=202610191902"></script>
 </body>
 </html>

@@ -444,3 +444,16 @@ td.nowrap { white-space: nowrap; }
 
 .pa-title { font-size: .95rem; margin: 18px 0 6px; }
 #result-areas { margin-top: 4px; }
+
+/* Painel: veredito do desempenho */
+.perf-person { min-width: 260px; }
+.perf-person .input { width: 100%; }
+.pv { border-radius: var(--radius); padding: 14px 16px; margin: 4px 0 8px; border: 1px solid var(--border); }
+.pv-ok { background: var(--ok-soft); border-color: rgba(52, 211, 153, .35); }
+.pv-bad { background: var(--bad-soft); border-color: rgba(248, 113, 113, .35); }
+.pv-title { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+.pv-ok .pv-title { color: var(--ok); }
+.pv-bad .pv-title { color: var(--bad); }
+.pv-weak { margin-top: 6px; font-size: .9rem; }
+.pv-base { margin-top: 6px; font-size: .78rem; color: var(--muted); }
+@media (max-width: 800px) { .perf-person { min-width: 0; width: 100%; } }

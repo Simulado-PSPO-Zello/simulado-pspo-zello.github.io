@@ -39,7 +39,8 @@
 
   async function load() {
     try {
-      const [summary, list, questions] = await Promise.all([api("/admin/summary"), api("/admin/attempts"), api("/admin/questions")]);
+      const [summary, list, questions, people] = await Promise.all([api("/admin/summary"), api("/admin/attempts"), api("/admin/questions"), api("/admin/people")]);
+      fillPerfPeople(people);
       attempts = list;
       $("login").classList.add("hidden");
       $("dashboard").classList.remove("hidden");
@@ -66,6 +67,46 @@
       ["Tentativas (total)", s.attempts],
     ].map(([l, v]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join("");
 
+    allPerf = { topics: s.topics, exams: s.exams, who: "Média do time" };
+    if (!$("perf-person").value) renderPerf(allPerf);
+  }
+
+  // ---------- desempenho normalizado para uma prova de 80 ----------
+  let allPerf = null;
+
+  function fillPerfPeople(people) {
+    const sel = $("perf-person");
+    const current = sel.value;
+    sel.innerHTML = `<option value="">Todas as pessoas</option>` + people
+      .filter((p) => p.exams > 0)
+      .map((p) => `<option value="${esc(p.id)}">${esc(p.name || p.email)} · ${p.exams} prova${p.exams === 1 ? "" : "s"}</option>`).join("");
+    sel.value = current;
+  }
+
+  // Junta as provas de uma pessoa (todas as datas, só Modo Prova) e normaliza para 80.
+  async function showPersonPerf() {
+    const user = $("perf-person").value;
+    if (!user) { renderPerf(allPerf); return; }
+    $("topics").innerHTML = `<p class="muted small">Carregando…</p>`;
+    try {
+      const to = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+      const q = new URLSearchParams({ user, from: "2000-01-01", to, modes: "exam" });
+      const data = await api(`/admin/report?${q}`);
+      const acc = {};
+      for (const a of data.attempts) {
+        for (const [k, v] of Object.entries(a.topics || {})) {
+          acc[k] ??= { topic: k, correct: 0, total: 0 };
+          acc[k].correct += v.correct;
+          acc[k].total += v.total;
+        }
+      }
+      renderPerf({ topics: Object.values(acc), exams: data.attempts.length, who: data.person.name || data.person.email });
+    } catch {
+      $("topics").innerHTML = `<p class="login-error">Não foi possível carregar o desempenho dessa pessoa. Tente de novo.</p>`;
+    }
+  }
+
+  function renderPerf(s) {
     // Duas tabelas que fecham em 80 cada uma, sem contar nada duas vezes:
     //  - por tema: 6 linhas (somam 80 questões);
     //  - por competência: 3 linhas (somam 80 questões).
@@ -108,13 +149,33 @@
     const head = (first, second) => `<thead><tr><th>${first}</th><th>${second}</th><th class="num">Questões por prova</th><th class="num">Acerto</th><th class="num">Acertos por prova</th><th>Situação</th></tr></thead>`;
     const answered = s.topics.reduce((n, tp) => n + tp.total, 0);
 
-    $("topics").innerHTML = s.topics.length ? `
+    // Veredito: a mesma conta da linha "Prova inteira" (soma dos temas), contra o mínimo de 85%.
+    const need = Math.ceil(80 * PASS_PCT / 100); // 68 acertos
+    const expected = sum(allKeys);
+    const weak = allKeys
+      .filter((k) => topicAvg[k] !== null && (topicAvg[k] / bp.quota[k]) * 100 < PASS_PCT)
+      .map((k) => ({ k, lost: bp.quota[k] - topicAvg[k], p: Math.round((topicAvg[k] / bp.quota[k]) * 100) }))
+      .sort((a, b) => b.lost - a.lost)
+      .slice(0, 3);
+    const weakTxt = weak.length
+      ? `<div class="pv-weak">Onde perde mais pontos: ${weak.map((w) => `<strong>${esc(TOPICS[w.k] ?? w.k)}</strong> (${w.p}%, perde ≈ ${fmt1(w.lost)} por prova)`).join(" · ")}</div>`
+      : `<div class="pv-weak">Todos os temas estão acima de ${PASS_PCT}%.</div>`;
+    const few = s.exams < 3 ? ` Base pequena: o resultado fica mais confiável a partir de 3 provas.` : "";
+    const verdict = expected === null ? "" : expected >= need
+      ? `<div class="pv pv-ok"><div class="pv-title">✓ ${esc(s.who)}: atinge a nota de aprovação</div>
+          <div>Em média <strong>${fmt1(expected)} de 80</strong> (${Math.round(expected / 80 * 100)}%), acima dos ${need} acertos necessários (${PASS_PCT}%).</div>${weakTxt}
+          <div class="pv-base">Base: ${s.exams} prova${s.exams === 1 ? "" : "s"} no Modo Prova.${few}</div></div>`
+      : `<div class="pv pv-bad"><div class="pv-title">✗ ${esc(s.who)}: ainda não atinge a nota de aprovação</div>
+          <div>Em média <strong>${fmt1(expected)} de 80</strong> (${Math.round(expected / 80 * 100)}%). Faltam <strong>≈ ${fmt1(need - expected)} acertos</strong> para chegar aos ${need} (${PASS_PCT}%).</div>${weakTxt}
+          <div class="pv-base">Base: ${s.exams} prova${s.exams === 1 ? "" : "s"} no Modo Prova.${few}</div></div>`;
+
+    $("topics").innerHTML = s.topics.length ? `${verdict}
       <h3 class="pa-title">Por tema</h3>
       <div class="table-wrap"><table class="rp-table pa-table">${head("Tema", "Competência")}<tbody>${topicRows}${total}</tbody></table></div>
       <h3 class="pa-title">Por competência</h3>
       <div class="table-wrap"><table class="rp-table pa-table">${head("Competência", "Temas")}<tbody>${areaRows}${total}</tbody></table></div>
-      <p class="muted small">Cada tabela soma 80 questões, como uma prova. "Acerto" é o % de acerto do tema em todas as provas no Modo Prova (${s.exams} prova${s.exams === 1 ? "" : "s"}, ${answered} questões respondidas); "Acertos por prova" aplica esse % às questões que o tema tem em cada prova. A competência e a prova inteira somam os temas.</p>`
-      : `<p class="muted">Ainda não há provas registradas.</p>`;
+      <p class="muted small">Tudo reduzido a uma prova de 80 questões, não importa quantas provas foram feitas. "Acerto" é o % de acerto do tema somando as provas (${s.exams} prova${s.exams === 1 ? "" : "s"}, ${answered} questões respondidas); "Acertos por prova" aplica esse % às questões que o tema tem em cada prova. A competência e a prova inteira somam os temas.</p>`
+      : `<p class="muted">Ainda não há provas registradas${s.who && s.who !== "Média do time" ? " para essa pessoa" : ""}.</p>`;
   }
 
   function filtered() {
@@ -181,6 +242,7 @@
     renderAttempts();
   }));
   $("btn-csv").addEventListener("click", exportCsv);
+  $("perf-person").addEventListener("change", showPersonPerf);
 
   // Apagar tentativa (janela própria: alguns navegadores bloqueiam o confirm()).
   let pendingDelete = null;
