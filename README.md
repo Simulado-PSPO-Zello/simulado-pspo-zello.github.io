@@ -30,14 +30,16 @@ O simulado está disponível em **português e inglês** (seletor PT | EN na tel
 
 O banco tem **251 questões**, cada uma em PT e EN. A cada prova, 80 são sorteadas com peso por área. O simulado guarda quantas vezes cada questão já caiu e prioriza as menos vistas: cerca de 3 provas seguidas não repetem nenhuma questão.
 
-| Área | Questões por prova | No banco |
-| --- | --- | --- |
-| Gestão do Product Backlog | 22 | 69 |
-| Papel do Product Owner | 15 | 46 |
-| PO nos Eventos Scrum | 14 | 43 |
-| Produto, Visão e Valor | 12 | 38 |
-| Release e Entrega de Valor | 10 | 32 |
-| Fundamentos do Scrum | 7 | 23 |
+| Área oficial (Scrum.org) | Tema | Questões por prova | No banco |
+| --- | --- | --- | --- |
+| Entender e aplicar o Scrum + Desenvolver pessoas e times (30%) | Fundamentos do Scrum | 12 | 23 |
+| | PO nos Eventos Scrum | 12 | 43 |
+| Gerenciar produtos com agilidade (70%) | Papel do Product Owner | 16 | 46 |
+| | Gestão do Product Backlog | 16 | 69 |
+| | Produto, Visão e Valor | 12 | 38 |
+| | Release e Entrega de Valor | 12 | 32 |
+
+A Scrum.org não publica o peso de cada área no PSPO I. A distribuição segue as focus areas oficiais, a ênfase declarada na página da prova (responsabilidades do Product Owner e aplicação do Scrum) e a estimativa mais citada pelos guias de preparação (~30% framework, ~70% gestão de produto). As cotas ficam em `exam-config.js`.
 
 ## Login e nuvem (Neon)
 

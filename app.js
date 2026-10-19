@@ -8,8 +8,8 @@
   const KEY_SEEN = "pspo-seen";
   const KEY_PENDING = "pspo-pending"; // tentativas aguardando envio para a nuvem
   const API_URL = (window.API_URL || "").replace(/\/$/, "");
-  // Quantas questões de cada área entram nas 80. Product Backlog é o "coração da prova".
-  const TOPIC_QUOTA = { backlog: 22, po: 15, events: 14, value: 12, release: 10, fundamentals: 7 };
+  // Quantas questões de cada tema entram nas 80: ver exam-config.js (planta da prova).
+  const TOPIC_QUOTA = window.EXAM_BLUEPRINT.quota;
   // Os dois bancos têm a mesma ordem: o índice é o id da questão nos dois idiomas.
   const BANKS = { pt: window.QUESTIONS, en: window.QUESTIONS_EN };
   for (const bank of Object.values(BANKS)) bank.forEach((q, i) => { q.id = i; });

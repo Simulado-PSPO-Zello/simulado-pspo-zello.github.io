@@ -416,3 +416,16 @@ body.on-login .topbar .brand { display: none; }
 #result-when { display: block; margin-top: 2px; }
 td.nowrap { white-space: nowrap; }
 @media (max-width: 800px) { .ends-at { display: none; } }
+
+/* Painel: desempenho agrupado pelas áreas oficiais */
+.topic-row { grid-template-columns: minmax(200px, 300px) 1fr auto; }
+.topic-pct { white-space: nowrap; min-width: 110px; }
+.area-group { padding: 12px 0; border-top: 1px solid var(--border); }
+.area-group:first-child { border-top: 0; padding-top: 0; }
+.area-head .topic-row { margin-bottom: 12px; }
+.area-head .bar { height: 12px; }
+.area-topics { padding-left: 16px; border-left: 2px solid var(--border); }
+@media (max-width: 800px) {
+  .topic-row { grid-template-columns: 1fr auto; }
+  .area-topics { padding-left: 10px; }
+}

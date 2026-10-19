@@ -66,12 +66,28 @@
       ["Tentativas (total)", s.attempts],
     ].map(([l, v]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join("");
 
-    const rows = s.topics.map((tp) => ({ ...tp, p: Math.round((tp.correct / tp.total) * 100) })).sort((a, b) => a.p - b.p);
-    $("topics").innerHTML = rows.length ? rows.map((tp) => {
-      const color = tp.p >= PASS_PCT ? "var(--ok)" : tp.p >= 70 ? "var(--warn)" : "var(--bad)";
-      return `<div class="topic-row"><span>${esc(TOPICS[tp.topic] ?? tp.topic)}</span>
-        <div class="bar"><div class="bar-fill" style="width:${tp.p}%;background:${color}"></div><div class="bar-mark"></div></div>
-        <span class="topic-pct">${tp.correct}/${tp.total} · ${tp.p}%</span></div>`;
+    const bp = window.EXAM_BLUEPRINT;
+    const byTopic = Object.fromEntries(s.topics.map((tp) => [tp.topic, tp]));
+    const color = (p) => (p >= PASS_PCT ? "var(--ok)" : p >= 70 ? "var(--warn)" : "var(--bad)");
+    const row = (label, correct, total, extra = "") => {
+      const p = total ? Math.round((correct / total) * 100) : 0;
+      return `<div class="topic-row"><span>${label}</span>
+        <div class="bar"><div class="bar-fill" style="width:${p}%;background:${color(p)}"></div><div class="bar-mark"></div></div>
+        <span class="topic-pct">${total ? `${correct}/${total} · ${p}%` : "—"}</span></div>${extra}`;
+    };
+    $("topics").innerHTML = s.topics.length ? bp.areas.map((area) => {
+      const perExam = area.topics.reduce((sum, k) => sum + (bp.quota[k] || 0), 0);
+      const c = area.topics.reduce((sum, k) => sum + (byTopic[k]?.correct || 0), 0);
+      const t = area.topics.reduce((sum, k) => sum + (byTopic[k]?.total || 0), 0);
+      const topics = area.topics
+        .map((k) => ({ k, ...(byTopic[k] || { correct: 0, total: 0 }) }))
+        .sort((a, b) => (a.total ? a.correct / a.total : 1) - (b.total ? b.correct / b.total : 1))
+        .map((tp) => row(`${esc(TOPICS[tp.k] ?? tp.k)} <span class="muted small">· ${bp.quota[tp.k] || 0} por prova</span>`, tp.correct, tp.total))
+        .join("");
+      return `<div class="area-group">
+        <div class="area-head">${row(`<strong>${esc(area.label)}</strong><br><span class="muted small">${esc(area.official)} · ${perExam} de 80 questões (${Math.round(perExam / 80 * 100)}%)</span>`, c, t)}</div>
+        <div class="area-topics">${topics}</div>
+      </div>`;
     }).join("") : `<p class="muted">Ainda não há provas registradas.</p>`;
   }
 
