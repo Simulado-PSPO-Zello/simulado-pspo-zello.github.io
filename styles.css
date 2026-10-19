@@ -429,3 +429,15 @@ td.nowrap { white-space: nowrap; }
   .topic-row { grid-template-columns: 1fr auto; }
   .area-topics { padding-left: 10px; }
 }
+
+/* Painel: desempenho por competência em formato de tabela */
+.pa-table td { vertical-align: middle; }
+.pa-table .pa-area td { background: var(--surface-2); border-top: 2px solid var(--border); }
+.pa-table .pa-topic td:first-child { padding-left: 24px; }
+.pa-table .pa-total td { border-top: 2px solid var(--text); font-weight: 600; }
+.pa-sub { font-size: .75rem; color: var(--muted); font-weight: 400; }
+.pa-acc { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.pa-acc .bar { width: 120px; flex: none; }
+.pa-acc strong { min-width: 38px; text-align: right; }
+.pa-raw { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+@media (max-width: 800px) { .pa-acc .bar { width: 60px; } }

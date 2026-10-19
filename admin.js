@@ -66,29 +66,49 @@
       ["Tentativas (total)", s.attempts],
     ].map(([l, v]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join("");
 
+    // Tabela "lida como uma prova": para cada tema, quantas questões ele tem por prova,
+    // o % de acerto (somando todas as provas do Modo Prova) e quanto esse % representa
+    // numa prova: "≈ 10 de 11". O total acumulado aparece só como detalhe.
     const bp = window.EXAM_BLUEPRINT;
     const byTopic = Object.fromEntries(s.topics.map((tp) => [tp.topic, tp]));
-    const color = (p) => (p >= PASS_PCT ? "var(--ok)" : p >= 70 ? "var(--warn)" : "var(--bad)");
-    const row = (label, correct, total, extra = "") => {
-      const p = total ? Math.round((correct / total) * 100) : 0;
-      return `<div class="topic-row"><span>${label}</span>
-        <div class="bar"><div class="bar-fill" style="width:${p}%;background:${color(p)}"></div><div class="bar-mark"></div></div>
-        <span class="topic-pct">${total ? `${correct}/${total} · ${p}%` : "—"}</span></div>${extra}`;
+    const fmt1 = (n) => (Math.round(n * 10) / 10).toLocaleString("pt-BR");
+    const situation = (p) => (p >= PASS_PCT
+      ? `<span class="rp-status ok">✓ Dominado</span>`
+      : p >= 70 ? `<span class="rp-status warn">! Atenção</span>` : `<span class="rp-status bad">✗ Prioridade</span>`);
+    const line = (cls, label, perExam, correct, total) => {
+      if (!total) return `<tr class="${cls}"><td>${label}</td><td class="num">${perExam}</td><td class="num muted">—</td><td class="num muted">—</td><td></td></tr>`;
+      const p = (correct / total) * 100;
+      const color = p >= PASS_PCT ? "var(--ok)" : p >= 70 ? "var(--warn)" : "var(--bad)";
+      return `<tr class="${cls}">
+        <td>${label}</td>
+        <td class="num">${perExam}</td>
+        <td class="num"><div class="pa-acc"><div class="bar"><div class="bar-fill" style="width:${p}%;background:${color}"></div><div class="bar-mark"></div></div><strong>${Math.round(p)}%</strong></div>
+          <div class="pa-raw">${correct} de ${total} no total</div></td>
+        <td class="num"><strong>≈ ${fmt1((p / 100) * perExam)}</strong> de ${perExam}</td>
+        <td>${situation(p)}</td>
+      </tr>`;
     };
-    $("topics").innerHTML = s.topics.length ? bp.areas.map((area) => {
+    let allC = 0, allT = 0;
+    const body = bp.areas.map((area) => {
       const perExam = area.topics.reduce((sum, k) => sum + (bp.quota[k] || 0), 0);
       const c = area.topics.reduce((sum, k) => sum + (byTopic[k]?.correct || 0), 0);
       const t = area.topics.reduce((sum, k) => sum + (byTopic[k]?.total || 0), 0);
-      const topics = area.topics
-        .map((k) => ({ k, ...(byTopic[k] || { correct: 0, total: 0 }) }))
-        .sort((a, b) => (a.total ? a.correct / a.total : 1) - (b.total ? b.correct / b.total : 1))
-        .map((tp) => row(`${esc(TOPICS[tp.k] ?? tp.k)} <span class="muted small">· ${bp.quota[tp.k] || 0} por prova</span>`, tp.correct, tp.total))
-        .join("");
-      return `<div class="area-group">
-        <div class="area-head">${row(`<strong>${esc(area.label)}</strong><br><span class="muted small">${esc(area.official)} · ${perExam} de 80 questões (${Math.round(perExam / 80 * 100)}%)</span>`, c, t)}</div>
-        <div class="area-topics">${topics}</div>
-      </div>`;
-    }).join("") : `<p class="muted">Ainda não há provas registradas.</p>`;
+      allC += c; allT += t;
+      // Competência com um tema só: uma linha, com o nome do tema no subtítulo (sem repetir a linha).
+      const single = area.topics.length === 1 ? ` · tema: ${esc(TOPICS[area.topics[0]] ?? area.topics[0])}` : "";
+      const head = line("pa-area",
+        `<strong>${esc(area.label)}</strong><div class="pa-sub">${esc(area.official)}${single}</div>`, perExam, c, t);
+      const topics = single ? "" : area.topics.map((k) => line("pa-topic", esc(TOPICS[k] ?? k), bp.quota[k] || 0,
+        byTopic[k]?.correct || 0, byTopic[k]?.total || 0)).join("");
+      return head + topics;
+    }).join("");
+    $("topics").innerHTML = s.topics.length ? `
+      <div class="table-wrap"><table class="rp-table pa-table">
+        <thead><tr><th>Competência / tema</th><th class="num">Questões por prova</th><th class="num">Acerto</th><th class="num">Equivale numa prova</th><th>Situação</th></tr></thead>
+        <tbody>${body}${line("pa-total", "<strong>Prova inteira</strong>", 80, allC, allT)}</tbody>
+      </table></div>
+      <p class="muted small">Base: ${s.exams} prova${s.exams === 1 ? "" : "s"} no Modo Prova, de todas as pessoas. "Equivale numa prova" aplica o % de acerto à quantidade de questões que o tema tem em cada prova hoje.</p>`
+      : `<p class="muted">Ainda não há provas registradas.</p>`;
   }
 
   function filtered() {
