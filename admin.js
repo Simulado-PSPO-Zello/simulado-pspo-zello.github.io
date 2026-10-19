@@ -67,7 +67,7 @@
       ["Tentativas (total)", s.attempts],
     ].map(([l, v]) => `<div class="stat"><div class="stat-label">${l}</div><div class="stat-value">${v}</div></div>`).join("");
 
-    allPerf = { topics: s.topics, exams: s.exams, who: "Média do time" };
+    allPerf = { topics: s.topics, exams: s.exams, who: "Média do time", avgPct: s.avg_pct };
     if (!$("perf-person").value) renderPerf(allPerf);
   }
 
@@ -100,7 +100,9 @@
           acc[k].total += v.total;
         }
       }
-      renderPerf({ topics: Object.values(acc), exams: data.attempts.length, who: data.person.name || data.person.email });
+      const avgPct = data.attempts.length
+        ? Math.round((data.attempts.reduce((n, a) => n + a.pct, 0) / data.attempts.length) * 10) / 10 : null;
+      renderPerf({ topics: Object.values(acc), exams: data.attempts.length, who: data.person.name || data.person.email, avgPct });
     } catch {
       $("topics").innerHTML = `<p class="login-error">Não foi possível carregar o desempenho dessa pessoa. Tente de novo.</p>`;
     }
@@ -138,7 +140,7 @@
       return vals.length === keys.length ? vals.reduce((a, b) => a + b, 0) : null;
     };
     const allKeys = bp.areas.flatMap((a) => a.topics);
-    const total = row("pa-total", `<td colspan="2"><strong>Prova inteira</strong></td>`, 80, sum(allKeys));
+    const total = row("pa-total", `<td colspan="2"><strong>Projeção numa prova atual</strong><div class="pa-sub">soma dos temas acima</div></td>`, 80, sum(allKeys));
 
     const topicRows = bp.areas.flatMap((area) => area.topics.map((k) =>
       row("", `<td>${esc(TOPICS[k] ?? k)}</td><td class="muted small">${esc(area.label)}</td>`, bp.quota[k], topicAvg[k]))).join("");
@@ -149,7 +151,11 @@
     const head = (first, second) => `<thead><tr><th>${first}</th><th>${second}</th><th class="num">Questões por prova</th><th class="num">Acerto</th><th class="num">Acertos por prova</th><th>Situação</th></tr></thead>`;
     const answered = s.topics.reduce((n, tp) => n + tp.total, 0);
 
-    // Veredito: a mesma conta da linha "Prova inteira" (soma dos temas), contra o mínimo de 85%.
+    // Veredito: a mesma conta da linha "Projeção numa prova atual" (soma dos temas), contra o mínimo de 85%.
+    const avgLine = () => s.avgPct === null || s.avgPct === undefined ? "" :
+      `<div class="pv-compare"><span><strong>Projeção na prova atual:</strong> ${fmt1(expected ?? 0)} de 80 (${fmt1(((expected ?? 0) / 80) * 100)}%) — acerto de cada tema aplicado à distribuição atual de 80 questões.</span>
+        <span><strong>Nota média das provas feitas:</strong> ${fmt1(s.avgPct)}% — média simples das notas de cada prova (soma das notas ÷ ${s.exams}).</span>
+        <span class="pv-base">Os dois diferem quando as provas antigas tinham outra quantidade de questões por tema; nas provas novas eles se aproximam.</span></div>`;
     const need = Math.ceil(80 * PASS_PCT / 100); // 68 acertos
     const expected = sum(allKeys);
     const weak = allKeys
@@ -163,10 +169,10 @@
     const few = s.exams < 3 ? ` Base pequena: o resultado fica mais confiável a partir de 3 provas.` : "";
     const verdict = expected === null ? "" : expected >= need
       ? `<div class="pv pv-ok"><div class="pv-title">✓ ${esc(s.who)}: atinge a nota de aprovação</div>
-          <div>Em média <strong>${fmt1(expected)} de 80</strong> (${Math.round(expected / 80 * 100)}%), acima dos ${need} acertos necessários (${PASS_PCT}%).</div>${weakTxt}
+          <div>Projeção: <strong>${fmt1(expected)} de 80</strong>, acima dos ${need} acertos necessários (${PASS_PCT}%).</div>${weakTxt}${avgLine()}
           <div class="pv-base">Base: ${s.exams} prova${s.exams === 1 ? "" : "s"} no Modo Prova.${few}</div></div>`
       : `<div class="pv pv-bad"><div class="pv-title">✗ ${esc(s.who)}: ainda não atinge a nota de aprovação</div>
-          <div>Em média <strong>${fmt1(expected)} de 80</strong> (${Math.round(expected / 80 * 100)}%). Faltam <strong>≈ ${fmt1(need - expected)} acertos</strong> para chegar aos ${need} (${PASS_PCT}%).</div>${weakTxt}
+          <div>Projeção: <strong>${fmt1(expected)} de 80</strong>. Faltam <strong>≈ ${fmt1(need - expected)} acertos</strong> para chegar aos ${need} (${PASS_PCT}%).</div>${weakTxt}${avgLine()}
           <div class="pv-base">Base: ${s.exams} prova${s.exams === 1 ? "" : "s"} no Modo Prova.${few}</div></div>`;
 
     $("topics").innerHTML = s.topics.length ? `${verdict}
