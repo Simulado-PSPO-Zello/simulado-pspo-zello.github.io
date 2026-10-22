@@ -49,6 +49,7 @@
       renderAttempts();
       renderQuestions(questions);
       if (!reportReady) { reportReady = true; window.Report.init(); }
+      if (window.Auth.user?.isOwner) loadManagers();
     } catch (e) {
       if (e.status === 403) showLogin(`A conta ${window.Auth.user?.email ?? ""} não tem acesso ao painel do gestor.`);
       else if (e.status === 401) showLogin("Sua sessão expirou. Entre de novo pelo simulado.");
@@ -248,6 +249,78 @@
     renderAttempts();
   }));
   $("btn-csv").addEventListener("click", exportCsv);
+
+  // ---------- gestores (só o dono) ----------
+  async function apiJson(path, method, body) {
+    const token = await window.Auth.token();
+    const res = await fetch(API_URL + path, {
+      method,
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  function managerMsg(text, ok) {
+    const el = $("manager-msg");
+    el.textContent = text || "";
+    el.className = `small ${text ? "" : "hidden"} ${ok ? "pass-txt" : "fail-txt"}`;
+  }
+
+  async function loadManagers() {
+    $("managers-panel").classList.remove("hidden");
+    try {
+      const { owners, managers } = await api("/admin/managers");
+      const rows = [
+        ...owners.map((e) => `<tr><td>${esc(e)}</td><td><span class="rp-status ok">Dono</span></td><td class="muted small">acesso fixo</td><td></td></tr>`),
+        ...managers.map((m) => `<tr><td>${esc(m.email)}${m.name ? `<div class="pa-sub">${esc(m.name)}</div>` : ""}</td>
+          <td><span class="rp-status warn">Gestor</span></td>
+          <td class="muted small">liberado por ${esc(m.addedBy)} em ${new Date(m.createdAt).toLocaleDateString("pt-BR")}</td>
+          <td><button type="button" class="btn btn-danger btn-small" data-remove-manager="${esc(m.email)}">Remover</button></td></tr>`),
+      ].join("");
+      $("managers-list").innerHTML = `<div class="table-wrap"><table class="rp-table">
+        <thead><tr><th>E-mail</th><th>Papel</th><th>Detalhes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    } catch {
+      $("managers-list").innerHTML = `<p class="login-error">Não foi possível carregar os gestores.</p>`;
+    }
+  }
+
+  $("manager-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("manager-email").value.trim().toLowerCase();
+    if (!email.endsWith("@zello.tec.br")) { managerMsg("Use um e-mail @zello.tec.br.", false); return; }
+    $("manager-add").disabled = true;
+    const r = await apiJson("/admin/managers", "POST", { email }).catch(() => ({ ok: false }));
+    $("manager-add").disabled = false;
+    if (r.ok) {
+      $("manager-email").value = "";
+      managerMsg(`Acesso liberado para ${email}. A pessoa vê o painel na próxima vez que abrir o site.`, true);
+      loadManagers();
+    } else {
+      managerMsg(r.data?.error === "already_owner" ? "Esse e-mail já é dono do painel." : "Não foi possível liberar. Confira o e-mail e tente de novo.", false);
+    }
+  });
+
+  // Remover (janela própria: alguns navegadores bloqueiam o confirm()).
+  let pendingManager = null;
+  $("managers-list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-remove-manager]");
+    if (!b) return;
+    pendingManager = b.dataset.removeManager;
+    $("manager-dialog-text").textContent = `${pendingManager} deixa de ver o painel do gestor. As provas dessa pessoa continuam salvas.`;
+    $("manager-dialog").showModal();
+  });
+  $("manager-no").addEventListener("click", () => { pendingManager = null; $("manager-dialog").close(); });
+  $("manager-yes").addEventListener("click", async () => {
+    if (!pendingManager) return;
+    const email = pendingManager;
+    const r = await apiJson(`/admin/managers/${encodeURIComponent(email)}`, "DELETE").catch(() => ({ ok: false }));
+    $("manager-dialog").close();
+    pendingManager = null;
+    managerMsg(r.ok ? `Acesso de ${email} removido.` : "Não foi possível remover agora. Tente de novo.", r.ok);
+    loadManagers();
+  });
   $("perf-person").addEventListener("change", showPersonPerf);
 
   // Apagar tentativa (janela própria: alguns navegadores bloqueiam o confirm()).

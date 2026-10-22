@@ -49,7 +49,7 @@ Os resultados do Modo Prova são salvos num Postgres no [Neon](https://neon.com)
 
 - **Ranking:** melhor nota de cada pessoa (mostra o nome, nunca o e-mail).
 - **Meu histórico:** as provas da pessoa logada, em qualquer aparelho.
-- **Painel do gestor:** `admin.html`, liberado só para os e-mails em `ADMIN_EMAILS`. Mostra todas as tentativas, desempenho por área, questões que mais derrubam e exportação em CSV.
+- **Painel do gestor:** `admin.html`, liberado para o dono (`OWNER_EMAILS`) e para os gestores que ele libera no próprio painel (quadro "Gestores com acesso ao painel"). Mostra todas as tentativas, desempenho por área, questões que mais derrubam e exportação em CSV.
 - **Relatório individual** (no painel do gestor): escolha a pessoa e o período para ver a evolução da nota, o desempenho por área (início × fim), onde melhorou, onde precisa de atenção, recomendações e as questões que mais errou. Pode ser impresso ou salvo em PDF.
 - **Sem conexão:** o resultado fica guardado no aparelho e é enviado depois, só para a conta de quem fez a prova.
 
@@ -71,7 +71,7 @@ neon deploy --env .env.local      # publica no Neon
 npm run build:auth                # regenera vendor/neon-auth.js (cliente de login)
 ```
 
-O `.env.local` (fora do Git) precisa ter `ALLOWED_ORIGINS` (sites que podem chamar a API), `ALLOWED_EMAIL_DOMAIN` e `ADMIN_EMAILS`, além das variáveis que o `neon env pull` gera. Os endereços públicos ficam em `config.js`. Um site novo também precisa ser cadastrado no Neon Auth: `neon neon-auth domain add https://site`.
+O `.env.local` (fora do Git) precisa ter `ALLOWED_ORIGINS` (sites que podem chamar a API), `ALLOWED_EMAIL_DOMAIN`, `OWNER_EMAILS` e `SESSION_SECRET`, além das variáveis que o `neon env pull` gera. Os endereços públicos ficam em `config.js`. Um site novo também precisa ser cadastrado no Neon Auth: `neon neon-auth domain add https://site`.
 
 ## Adicionando questões
 

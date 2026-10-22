@@ -51,8 +51,8 @@
     const me = await fetch(`${API_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
     if (!me.ok) return { error: me.status };
     const info = await me.json();
-    session.set({ token, exp, email: info.email, name: info.name, isAdmin: info.isAdmin });
-    user = { email: info.email, name: info.name, isAdmin: info.isAdmin };
+    session.set({ token, exp, email: info.email, name: info.name, isAdmin: info.isAdmin, isOwner: info.isOwner });
+    user = { email: info.email, name: info.name, isAdmin: info.isAdmin, isOwner: info.isOwner };
     return { user };
   }
 
@@ -66,7 +66,7 @@
     async init() {
       const s = session.get();
       if (s && isAllowed(s.email)) {
-        user = { email: s.email, name: s.name, isAdmin: s.isAdmin };
+        user = { email: s.email, name: s.name, isAdmin: s.isAdmin, isOwner: s.isOwner };
         return user;
       }
       session.clear();
@@ -119,8 +119,8 @@
         const res = await fetch(`${API_URL}/me`, { headers: { Authorization: `Bearer ${s.token}` } });
         if (!res.ok) return user;
         const info = await res.json();
-        session.set({ ...s, email: info.email, name: info.name, isAdmin: info.isAdmin });
-        user = { email: info.email, name: info.name, isAdmin: info.isAdmin };
+        session.set({ ...s, email: info.email, name: info.name, isAdmin: info.isAdmin, isOwner: info.isOwner });
+        user = { email: info.email, name: info.name, isAdmin: info.isAdmin, isOwner: info.isOwner };
       } catch { /* sem conexão: mantém o que já tinha */ }
       return user;
     },

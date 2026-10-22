@@ -17,7 +17,9 @@ const required = (name: string) => {
 };
 const allowedOrigins = required("ALLOWED_ORIGINS").split(",").map((s) => s.trim()).filter(Boolean);
 const allowedDomain = required("ALLOWED_EMAIL_DOMAIN").trim().toLowerCase().replace(/^@/, "");
-const adminEmails = new Set(required("ADMIN_EMAILS").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
+// Donos do painel: acesso fixo e permissão para liberar/remover gestores. Os demais gestores
+// ficam na tabela managers e são gerenciados pela tela do painel.
+const ownerEmails = new Set(required("OWNER_EMAILS").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean));
 const jwks = createRemoteJWKSet(new URL(required("NEON_AUTH_JWKS_URL")));
 const issuer = new URL(required("NEON_AUTH_BASE_URL")).origin;
 const sessionSecret = required("SESSION_SECRET");
@@ -65,7 +67,7 @@ function verifySession(token: string): string | null {
   }
 }
 
-type User = { id: string; email: string; name: string; isAdmin: boolean };
+type User = { id: string; email: string; name: string; isAdmin: boolean; isOwner: boolean };
 type Env = { Variables: { user: User } };
 
 // Cache curto do usuário por id, para não consultar o banco a cada requisição.
@@ -75,12 +77,16 @@ const USER_CACHE_MS = 60_000;
 async function loadUser(id: string): Promise<User | null> {
   const hit = userCache.get(id);
   if (hit && Date.now() - hit.at < USER_CACHE_MS) return hit.user;
+  await ensureSchema(); // a tabela managers precisa existir antes da consulta
   const { rows: [u] } = await pool.query(
-    `SELECT id, email, name, "emailVerified" AS verified, coalesce(banned, false) AS banned
-       FROM neon_auth."user" WHERE id = $1`, [id]);
+    `SELECT u.id, u.email, u.name, u."emailVerified" AS verified, coalesce(u.banned, false) AS banned,
+            (m.email IS NOT NULL) AS manager
+       FROM neon_auth."user" u LEFT JOIN managers m ON m.email = lower(u.email)
+      WHERE u.id = $1`, [id]);
   const email = String(u?.email ?? "").toLowerCase();
   const ok = u && u.verified && !u.banned && email.endsWith(`@${allowedDomain}`);
-  const user = ok ? { id: u.id, email, name: u.name || "", isAdmin: adminEmails.has(email) } : null;
+  const isOwner = ownerEmails.has(email);
+  const user = ok ? { id: u.id, email, name: u.name || "", isAdmin: isOwner || u.manager, isOwner } : null;
   userCache.set(id, { user, at: Date.now() });
   return user;
 }
@@ -146,7 +152,7 @@ app.post("/session", (c) => c.json(issueSession(c.get("user").id)));
 
 app.get("/me", (c) => {
   const u = c.get("user");
-  return c.json({ email: u.email, name: u.name, isAdmin: u.isAdmin });
+  return c.json({ email: u.email, name: u.name, isAdmin: u.isAdmin, isOwner: u.isOwner });
 });
 
 // ---------- tentativas ----------
@@ -305,6 +311,45 @@ const requireAdmin = async (c: Context<Env>, next: () => Promise<void>) => {
   await next();
 };
 app.use("/admin/*", requireAdmin);
+
+// ---------- gestores (só o dono) ----------
+
+const requireOwner = async (c: Context<Env>, next: () => Promise<void>) => {
+  if (!c.get("user").isOwner) return c.json({ error: "forbidden" }, 403);
+  await next();
+};
+app.use("/admin/managers", requireOwner);
+app.use("/admin/managers/*", requireOwner);
+
+app.get("/admin/managers", async (c) => {
+  const { rows } = await pool.query(
+    `SELECT m.email, m.added_by AS "addedBy", m.created_at AS "createdAt", u.name
+       FROM managers m LEFT JOIN neon_auth."user" u ON lower(u.email) = m.email
+      ORDER BY m.created_at`);
+  return c.json({ owners: [...ownerEmails], managers: rows });
+});
+
+app.post("/admin/managers", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const email = String(body?.email ?? "").trim().toLowerCase();
+  if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+$/.test(email) || !email.endsWith(`@${allowedDomain}`)) {
+    return c.json({ error: "invalid_email" }, 400);
+  }
+  if (ownerEmails.has(email)) return c.json({ error: "already_owner" }, 409);
+  await pool.query(
+    `INSERT INTO managers (email, added_by) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
+    [email, c.get("user").email]);
+  userCache.clear(); // a permissão vale na próxima requisição da pessoa
+  return c.json({ ok: true, email }, 201);
+});
+
+app.delete("/admin/managers/:email", async (c) => {
+  const email = decodeURIComponent(c.req.param("email")).trim().toLowerCase();
+  if (ownerEmails.has(email)) return c.json({ error: "owner_is_fixed" }, 409);
+  const { rowCount } = await pool.query(`DELETE FROM managers WHERE email = $1`, [email]);
+  userCache.clear();
+  return rowCount ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
+});
 
 app.get("/admin/summary", async (c) => {
   const { rows: [s] } = await pool.query(

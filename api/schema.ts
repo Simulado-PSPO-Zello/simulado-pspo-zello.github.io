@@ -38,4 +38,11 @@ CREATE INDEX IF NOT EXISTS attempt_answers_question_idx ON attempt_answers (ques
 ALTER TABLE attempt_answers ADD COLUMN IF NOT EXISTS selected smallint[];
 ALTER TABLE attempt_answers ADD COLUMN IF NOT EXISTS flagged boolean NOT NULL DEFAULT false;
 ALTER TABLE attempt_answers ADD COLUMN IF NOT EXISTS position smallint;
+
+-- Gestores com acesso ao painel, liberados pelo dono (OWNER_EMAILS) na própria tela.
+CREATE TABLE IF NOT EXISTS managers (
+  email      text PRIMARY KEY CHECK (email = lower(email)),
+  added_by   text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 `;
